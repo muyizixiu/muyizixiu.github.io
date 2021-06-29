@@ -71,35 +71,65 @@
       <div class="outer">
         <section id="main">
   
-    <article id="post-panya/start_c_1" class="h-entry article article-type-post" itemprop="blogPost" itemscope itemtype="https://schema.org/BlogPosting">
+    <article id="post-curl" class="h-entry article article-type-post" itemprop="blogPost" itemscope itemtype="https://schema.org/BlogPosting">
   <div class="article-meta">
-    <a href="/2021/06/29/panya/start_c_1/" class="article-date">
-  <time class="dt-published" datetime="2021-06-29T11:00:50.970Z" itemprop="datePublished">2021-06-29</time>
+    <a href="/2018/02/26/curl/" class="article-date">
+  <time class="dt-published" datetime="2018-02-26T00:00:00.000Z" itemprop="datePublished">2018-02-26</time>
 </a>
     
+  <div class="article-category">
+    <a class="article-category-link" href="/categories/%E6%8A%80%E6%9C%AF/">技术</a>
+  </div>
+
   </div>
   <div class="article-inner">
     
     
+      <header class="article-header">
+        
+  
+    <h1 itemprop="name">
+      <a class="p-name article-title" href="/2018/02/26/curl/">curl追踪http请求跳转</a>
+    </h1>
+  
+
+      </header>
+    
     <div class="e-content article-entry" itemprop="articleBody">
       
-        <html>
-	<head>
-		<title></title>
-	</head>
-	<body>
-	
-	<script language="javascript">
-		self.location.href = "start.html#c=1";
-	</script>
-	
-	</body>
-</html>
+        <p>在网路中，http(s)跳转是常见的一种行为，例如：301永久重定向，302临时重定向。而curl是一种命令行发起请求的工具。在工作中，我们项目遇到一个难以理解的跳转行为，最终利用curl和nginx配置文件，理解了该跳转行为。</p>
+<h2 id="问题描述"><a href="#问题描述" class="headerlink" title="问题描述"></a>问题描述</h2><p>项目中存在一个老的资源地址 <a target="_blank" rel="noopener" href="http://www.old.com/">www.old.com</a>, 仅支持http访问。新的需求要求将一个新的地址 <a target="_blank" rel="noopener" href="http://www.new.com/">www.new.com</a>, 无论http/https都要跳转至 <a target="_blank" rel="noopener" href="http://www.old.com/">www.old.com</a>. 需求相对较为简单，团队内部开发人员t讨论的实现方式为：</p>
+<ol>
+<li>将 <a target="_blank" rel="noopener" href="https://www.new.com/">https://www.new.com</a> 在 nginx 中 rewrite 至 <a target="_blank" rel="noopener" href="http://www.new.com/">http://www.new.com</a>.</li>
+<li>在 <a target="_blank" rel="noopener" href="http://www.new.com/">http://www.new.com</a> 的虚拟 server 中使用 nginx 的 proxy_pass 代理至 <a target="_blank" rel="noopener" href="http://www.old.com/">http://www.old.com</a>.</li>
+</ol>
+<p>理论上这样便可以实现当前的要求. 测试时发现，<a target="_blank" rel="noopener" href="https://www.new.com/">https://www.new.com</a> 跳转至 <a target="_blank" rel="noopener" href="http://www.old.com/">http://www.old.com</a> 正常，但 <a target="_blank" rel="noopener" href="http://www.new.com/">http://www.new.com</a> 跳入了一个错误的地址, <a target="_blank" rel="noopener" href="https://www.wrong.com/">https://www.wrong.com</a>.<br>实际导致该问题出现有两部分原因：</p>
+<ol>
+<li>开发人员实际设置 <a target="_blank" rel="noopener" href="https://www.new.com/">https://www.new.com</a> 跳转至 <a target="_blank" rel="noopener" href="http://new.com/">http://new.com</a>. 而 new.com 的 nginx 配置与 <a target="_blank" rel="noopener" href="http://www.new.com/">www.new.com</a> 一致，共享同一个 server 块。</li>
+<li>目的地地址 <a target="_blank" rel="noopener" href="http://www.old.com/">www.old.com</a> 识别跳转地址，如果是特定的地址（本项目中为 <a target="_blank" rel="noopener" href="http://www.new.com/">www.new.com</a> ）则跳转入 <a target="_blank" rel="noopener" href="http://www.wrong.com/">www.wrong.com</a>.</li>
+</ol>
+<p>问题不是很复杂，但是每个原因都很偶然，且难以直接分辨, 表现形式也诡异。<a target="_blank" rel="noopener" href="https://www.new.com/">https://www.new.com</a> 跳转正常，<a target="_blank" rel="noopener" href="http://www.new.com/">http://www.new.com</a> 则失败。</p>
+<h2 id="debug"><a href="#debug" class="headerlink" title="debug"></a>debug</h2><p>处理该 bug 时，首要想法是弄清楚每一个跳转行为。三个方案可以实现该目标：</p>
+<ol>
+<li>浏览器开发者工具中查看网络请求</li>
+<li>nginx 可以设置 rewrite_log. 可以在 error_log 的 info 信息中查看跳转行为</li>
+<li>curl 请求模拟<br>因为跳转时301永久重定向，浏览器刷新查看网络请求就显得比较麻烦；而 nginx rewrite_log 则需要在线上服务器中修改配置，请求量过多会导致日志追查困难。curl 是个命令行工具，也无需考虑缓存问题。</li>
+</ol>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">curl -I http://www.new.com</span><br><span class="line"># -I 选项只查看 http head 信息</span><br></pre></td></tr></table></figure>
+<p>仅查看 http head 信息发现，跳转至了一个移动端的地址 m.new.com, 而非原先的错误地址。随后查看 nginx 配置得知，移动端的跳转利用了 user agent, 根据 user agent 判断是否来自移动端，如果是，则进行移动端跳转。curl 请求默认的 user agent 则为 curl, 在移动端跳转规则之内。</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">curl -A PC -I http://www.new.com</span><br><span class="line"># -A 选项指定user agent</span><br></pre></td></tr></table></figure>
+<p>替换 user agent 发现, <a target="_blank" rel="noopener" href="http://www.new.com/">http://www.new.com</a> 跳转至错误地址 <a target="_blank" rel="noopener" href="https://www.wrong.com/">https://www.wrong.com</a>. 问题复现！</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">curl -A PC -I -L http://www.new.com</span><br><span class="line"># -L 选项使 curl 跟随每次跳转请求，这样我们可以观察到所有 rewrite 行为了。</span><br></pre></td></tr></table></figure>
+<p>排除 user agent 问题后，发现跳转行为一如 nginx 配置，<a target="_blank" rel="noopener" href="http://www.new.com/">http://www.new.com</a> 直接跳转至 <a target="_blank" rel="noopener" href="http://wrong.com/">http://wrong.com</a>, 再接着升级为 <a target="_blank" rel="noopener" href="https://wrong.com/">https://wrong.com</a>.</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">curl -A PC -I -L https://www.new.com</span><br><span class="line"># https 的请求追随</span><br></pre></td></tr></table></figure>
+<p>而 https 的请求跳转行为为：<a target="_blank" rel="noopener" href="https://www.new.com/">https://www.new.com</a>, <a target="_blank" rel="noopener" href="https://new.com/">https://new.com</a>, <a target="_blank" rel="noopener" href="http://www.old.com/">http://www.old.com</a>. 跳转成功。对比两个跳转行为，问题1则被发现了。</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">curl -v -A PC -I -L http://www.new.com</span><br><span class="line"># -v 选项指定查看请求详细信息</span><br></pre></td></tr></table></figure>
+<p>在接下来的详细信息中，我们能观察到每次跳转请求的服务器地址。因为 <a target="_blank" rel="noopener" href="http://www.new.com/">http://www.new.com</a> 并非跳转至 <a target="_blank" rel="noopener" href="http://www.old.com/">http://www.old.com</a>, 而是代理（即 proxy_pass ）。无法观察出任何跳转信息，而在服务器响应的 response 中，我们观察到，http header 中有字段 X-Powerd-By: PHP/5.60. 判断出该跳转乃是目标地址的 php 脚本行为。</p>
 
       
     </div>
     <footer class="article-footer">
-      <a data-url="https://muyizixiu.github.io/2021/06/29/panya/start_c_1/" data-id="ckqhxvqgq0013phnchk71dxk2" data-title="" class="article-share-link">Share</a>
+      <a data-url="https://muyizixiu.github.io/2018/02/26/curl/" data-id="ckqhy2ca70004m0nehzplb20o" data-title="curl追踪http请求跳转" class="article-share-link">Share</a>
       
       
       
@@ -111,35 +141,47 @@
 
 
   
-    <article id="post-panya/start_g_0" class="h-entry article article-type-post" itemprop="blogPost" itemscope itemtype="https://schema.org/BlogPosting">
+    <article id="post-mysql-bin-log" class="h-entry article article-type-post" itemprop="blogPost" itemscope itemtype="https://schema.org/BlogPosting">
   <div class="article-meta">
-    <a href="/2021/06/29/panya/start_g_0/" class="article-date">
-  <time class="dt-published" datetime="2021-06-29T11:00:50.970Z" itemprop="datePublished">2021-06-29</time>
+    <a href="/2018/01/29/mysql-bin-log/" class="article-date">
+  <time class="dt-published" datetime="2018-01-29T00:00:00.000Z" itemprop="datePublished">2018-01-29</time>
 </a>
     
+  <div class="article-category">
+    <a class="article-category-link" href="/categories/%E6%8A%80%E6%9C%AF/">技术</a>►<a class="article-category-link" href="/categories/%E6%8A%80%E6%9C%AF/mysql/">mysql</a>
+  </div>
+
   </div>
   <div class="article-inner">
     
     
+      <header class="article-header">
+        
+  
+    <h1 itemprop="name">
+      <a class="p-name article-title" href="/2018/01/29/mysql-bin-log/">bin-log备份脚本</a>
+    </h1>
+  
+
+      </header>
+    
     <div class="e-content article-entry" itemprop="articleBody">
       
-        <html>
-<head>
-    <title></title>
-</head>
-<body>
+        <h1 id="binlog备份脚本"><a href="#binlog备份脚本" class="headerlink" title="binlog备份脚本"></a>binlog备份脚本</h1><p>出于想日常备份binlog的缘故，编写了一个可以定期连接远程mysql server并下载binlog日志的脚本。</p>
+<h2 id="mysql-bin-log"><a href="#mysql-bin-log" class="headerlink" title="mysql bin log"></a>mysql bin log</h2><p>mysql 有多种日志类型，在一个长期running的项目中，值得研究的两个日志是：慢日志（slow log）,二进制日志 (bin log)。前者相对较为简单，连接到mysql server或者在配置中配置好时间，并且开启，可以观察到运行较慢的sql，后者往往用于数据同步。binlog是一种mysql数据库记录数据变更操作的二进制日志，mysql server会记录一定量的日志，并利用二进制日志来实现数据主从数据同步。远程连接mysql server可以下载一定时间内的binlog日志，更长时间范围的需要直接取对应的存储位置下载。二进制日志记录了每一个使数据变跟的sql，通过这一功能，我们可以恢复确定时间点的数据，本质上就是日志追踪了每一个使数据变更的操作，然后再重复所有变更操作。</p>
+<h2 id="脚本内容"><a href="#脚本内容" class="headerlink" title="脚本内容"></a>脚本内容</h2><figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br></pre></td><td class="code"><pre><span class="line">#!/bin/sh</span><br><span class="line">#备份binlog日志</span><br><span class="line">#利用sql &#x27;show master logs&#x27; 查看binlog日志</span><br><span class="line">#命令行输入密码时，如果存在特殊字符，除了转义外，还可以使用单引号，单引号里的内容不会被shell解释为特殊含义</span><br><span class="line">mysql_binlog_filename=$(mysql -u username -p&#x27;password&#x27; -h host -e &quot;show master logs&quot;|grep &quot;mysql-bin&quot;|awk &#x27;&#123;print $1&#125;&#x27;)</span><br><span class="line">for file in $mysql_binlog_filename</span><br><span class="line">do</span><br><span class="line">	dirname=$(date &quot;+%y-%m-%d&quot;)</span><br><span class="line">	if ! test -d $dirname</span><br><span class="line">	then</span><br><span class="line">		mkdir $dirname</span><br><span class="line">	fi</span><br><span class="line">	#远程读取binlog日志</span><br><span class="line">	`mysqlbinlog -u username -p&#x27;password&#x27; -h host --read-from-remote-server $file --result-file=$dirname/$file  -v --base64-output=decode-rows`</span><br><span class="line">done</span><br></pre></td></tr></table></figure>
 
-    <script language="javascript">
-        self.location.href = "start.html#g=0";
-    </script>
-
-</body>
-</html>
+<h2 id="解析"><a href="#解析" class="headerlink" title="解析"></a>解析</h2><ol>
+<li>mysqlbinlog 连接到远程服务器，可以下载指定的binlog日志</li>
+<li>-v 参数可以导出更多详细信息</li>
+<li>–base64-output指定解析binlog，decode-rows可以解析为带注释的sql，另外的可选值包括已经放弃的always，以及不解析的never。</li>
+<li>下载日志时,使用低版本的mysqlbinlog和高版本的mysql server会导致校验失败: Slave can not handle replication events with the checksum that master is configured to log;</li>
+</ol>
 
       
     </div>
     <footer class="article-footer">
-      <a data-url="https://muyizixiu.github.io/2021/06/29/panya/start_g_0/" data-id="ckqhxvqgr0015phnc4ocnatpk" data-title="" class="article-share-link">Share</a>
+      <a data-url="https://muyizixiu.github.io/2018/01/29/mysql-bin-log/" data-id="ckqhy2cao000qm0ne4i1d4heu" data-title="bin-log备份脚本" class="article-share-link">Share</a>
       
       
       
@@ -151,218 +193,51 @@
 
 
   
-    <article id="post-panya/产品与服务" class="h-entry article article-type-post" itemprop="blogPost" itemscope itemtype="https://schema.org/BlogPosting">
+    <article id="post-Laravel-where-cache" class="h-entry article article-type-post" itemprop="blogPost" itemscope itemtype="https://schema.org/BlogPosting">
   <div class="article-meta">
-    <a href="/2021/06/29/panya/%E4%BA%A7%E5%93%81%E4%B8%8E%E6%9C%8D%E5%8A%A1/" class="article-date">
-  <time class="dt-published" datetime="2021-06-29T11:00:50.970Z" itemprop="datePublished">2021-06-29</time>
+    <a href="/2018/01/28/Laravel-where-cache/" class="article-date">
+  <time class="dt-published" datetime="2018-01-28T00:00:00.000Z" itemprop="datePublished">2018-01-28</time>
 </a>
     
+  <div class="article-category">
+    <a class="article-category-link" href="/categories/%E6%8A%80%E6%9C%AF/">技术</a>►<a class="article-category-link" href="/categories/%E6%8A%80%E6%9C%AF/php/">php</a>
+  </div>
+
   </div>
   <div class="article-inner">
     
     
+      <header class="article-header">
+        
+  
+    <h1 itemprop="name">
+      <a class="p-name article-title" href="/2018/01/28/Laravel-where-cache/">Laravel where 条件缓存</a>
+    </h1>
+  
+
+      </header>
+    
     <div class="e-content article-entry" itemprop="articleBody">
       
-        <!DOCTYPE html>
-<html>
-  <head>
-    <title>产品与服务</title>
-    <meta http-equiv="X-UA-Compatible" content="IE=edge"/>
-    <meta http-equiv="content-type" content="text/html; charset=utf-8"/>
-    <meta name="viewport" content="width=1200, user-scalable=no"/>
-    <meta name="format-detection" content="telephone=no"/>
-    <meta name="apple-mobile-web-app-capable" content="yes"/>
-    <link href="data/apple-touch-icon.png" rel="apple-touch-icon"/>
-    <link href="resources/css/jquery-ui-themes.css" type="text/css" rel="stylesheet"/>
-    <link href="resources/css/axure_rp_page.css" type="text/css" rel="stylesheet"/>
-    <link href="data/styles.css" type="text/css" rel="stylesheet"/>
-    <link href="files/产品与服务/styles.css" type="text/css" rel="stylesheet"/>
-    <link href="http://cdn.bootcss.com/font-awesome/4.7.0/css/font-awesome.css" type="text/css" rel="stylesheet"/>
-    <script src="resources/scripts/jquery-1.7.1.min.js"></script>
-    <script src="resources/scripts/jquery-ui-1.8.10.custom.min.js"></script>
-    <script src="resources/scripts/prototypePre.js"></script>
-    <script src="data/document.js"></script>
-    <script src="resources/scripts/prototypePost.js"></script>
-    <script src="files/产品与服务/data.js"></script>
-    <script type="text/javascript">
-      $axure.utils.getTransparentGifPath = function() { return 'resources/images/transparent.gif'; };
-      $axure.utils.getOtherPath = function() { return 'resources/Other.html'; };
-      $axure.utils.getReloadPath = function() { return 'resources/reload.html'; };
-    </script>
-  </head>
-  <body>
-    <div id="base" class="">
+        <h1 id="Laravel-where-条件缓存"><a href="#Laravel-where-条件缓存" class="headerlink" title="Laravel where 条件缓存"></a>Laravel where 条件缓存</h1><p>在Laravel中，使用门面提供的DB类，以QueryBuilder的形式去操作数据库是一种很常见的形式。由DB::table($tablename)提供的对象即是QueryBuilder类的。这里面值得注意的一点是：在获取完数据之后，QueryBuilder 对象并不会释放其缓存内容。这里的缓存内容指的是查询条件，例如：where,join,groups等条件。这有可能会导致一个问题，下面是问题代码的示范:</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br></pre></td><td class="code"><pre><span class="line">&lt;?php</span><br><span class="line">\DB::listen(function($query)&#123;</span><br><span class="line">    echo &quot;\n&quot;,$query-&gt;sql;</span><br><span class="line">&#125;);</span><br><span class="line">\DB::table(&#x27;seeed_user&#x27;)-&gt;select(&#x27;*&#x27;)-&gt;where(&#x27;id&#x27;,&#x27;=&#x27;,&#x27;1&#x27;)-&gt;get();//正常查询</span><br><span class="line">\DB::table(&#x27;seeed_user&#x27;)-&gt;select(&#x27;*&#x27;)-&gt;where(&#x27;id&#x27;,&#x27;!=&#x27;,&#x27;1&#x27;)-&gt;get();//正常查询</span><br><span class="line">$table = \DB::table(&#x27;seeed_user&#x27;);//缓存QueryBuilder对象</span><br><span class="line">$table-&gt;select(&#x27;*&#x27;)-&gt;where(&#x27;id&#x27;,&#x27;=&#x27;,&#x27;1&#x27;)-&gt;get();//正常查询</span><br><span class="line">$table-&gt;select(&#x27;*&#x27;)-&gt;where(&#x27;id&#x27;,&#x27;!=&#x27;,&#x27;1&#x27;)-&gt;get();//这里的sql查询不正常,受上一条查询sql的影响</span><br></pre></td></tr></table></figure>
 
-      <!-- Unnamed (顶部导航) -->
-
-      <!-- 顶部导航 (动态面板) -->
-      <div id="u239" class="ax_default" data-label="顶部导航">
-        <div id="u239_state0" class="panel_state" data-label="白色背景" style="">
-          <div id="u239_state0_content" class="panel_state_content">
-
-            <!-- 线条 (动态面板) -->
-            <div id="u240" class="ax_default" data-label="线条">
-              <div id="u240_state0" class="panel_state" data-label="State1" style="">
-                <div id="u240_state0_content" class="panel_state_content">
-                </div>
-              </div>
-            </div>
-
-            <!-- logo (矩形) -->
-            <div id="u241" class="ax_default _默认样式" data-label="logo">
-              <div id="u241_div" class=""></div>
-              <!-- Unnamed () -->
-              <div id="u242" class="text">
-                <p><span>4PX Logo</span></p>
-              </div>
-            </div>
-
-            <!-- 首页 (矩形) -->
-            <div id="u243" class="ax_default _默认样式" data-label="首页" selectiongroup="u238菜单1">
-              <div id="u243_div" class=""></div>
-              <!-- Unnamed () -->
-              <div id="u244" class="text">
-                <p><span>自提網點</span></p>
-              </div>
-            </div>
-
-            <!-- 产品与服务 (矩形) -->
-            <div id="u245" class="ax_default _默认样式" data-label="产品与服务" selectiongroup="u238菜单1">
-              <div id="u245_div" class=""></div>
-              <!-- Unnamed () -->
-              <div id="u246" class="text">
-                <p><span>產品與服務</span></p>
-              </div>
-            </div>
-
-            <!-- 常見問題 (矩形) -->
-            <div id="u247" class="ax_default _默认样式" data-label="常見問題" selectiongroup="u238菜单1">
-              <div id="u247_div" class=""></div>
-              <!-- Unnamed () -->
-              <div id="u248" class="text">
-                <p><span>常見問題</span></p>
-              </div>
-            </div>
-
-            <!-- 優惠活動 (矩形) -->
-            <div id="u249" class="ax_default _默认样式" data-label="優惠活動" selectiongroup="u238菜单1">
-              <div id="u249_div" class=""></div>
-              <!-- Unnamed () -->
-              <div id="u250" class="text">
-                <p><span>優惠活動</span></p>
-              </div>
-            </div>
-
-            <!-- 個人中心 (矩形) -->
-            <div id="u251" class="ax_default _默认样式" data-label="個人中心" selectiongroup="u238菜单1">
-              <div id="u251_div" class=""></div>
-              <!-- Unnamed () -->
-              <div id="u252" class="text">
-                <p><span style="font-family:'微软雅黑';font-weight:410;">個人中心&nbsp; &nbsp; </span><span style="font-family:'FontAwesome';font-weight:400;font-size:18px;"></span></p>
-              </div>
-            </div>
-
-            <!-- 产品与服务 (矩形) -->
-            <div id="u253" class="ax_default _默认样式" data-label="产品与服务" selectiongroup="u238菜单1">
-              <div id="u253_div" class=""></div>
-              <!-- Unnamed () -->
-              <div id="u254" class="text">
-                <p><span>首頁</span></p>
-              </div>
-            </div>
-
-            <!-- 個人中心 (矩形) -->
-            <div id="u255" class="ax_default _默认样式" data-label="個人中心" selectiongroup="u238菜单1">
-              <div id="u255_div" class=""></div>
-              <!-- Unnamed () -->
-              <div id="u256" class="text">
-                <p><span>企業客戶 &gt;&gt;</span></p>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <!-- Unnamed (侧边工具) -->
-
-      <!-- 侧边工具 (动态面板) -->
-      <div id="u258" class="ax_default" data-label="侧边工具">
-        <div id="u258_state0" class="panel_state" data-label="State1" style="">
-          <div id="u258_state0_content" class="panel_state_content">
-
-            <!-- Unnamed (矩形) -->
-            <div id="u259" class="ax_default _默认样式">
-              <div id="u259_div" class=""></div>
-              <!-- Unnamed () -->
-              <div id="u260" class="text">
-                <p><span style="font-family:'FontAwesome';font-size:28px;color:#CCCCCC;"></span></p><p><span style="font-family:'微软雅黑';font-size:12px;color:#999999;">在線咨詢</span></p>
-              </div>
-            </div>
-
-            <!-- Unnamed (矩形) -->
-            <div id="u261" class="ax_default _默认样式">
-              <div id="u261_div" class=""></div>
-              <!-- Unnamed () -->
-              <div id="u262" class="text">
-                <p><span style="font-family:'FontAwesome';font-size:36px;"></span></p><p><span style="font-family:'FontAwesome';font-size:12px;">運費</span><span style="font-family:'微软雅黑';font-size:12px;">計算</span></p>
-              </div>
-            </div>
-
-            <!-- TOP (矩形) -->
-            <div id="u263" class="ax_default _默认样式 ax_default_hidden" data-label="TOP" style="display:none; visibility: hidden">
-              <div id="u263_div" class=""></div>
-              <!-- Unnamed () -->
-              <div id="u264" class="text">
-                <p><span style="font-family:'FontAwesome';font-size:28px;color:#CCCCCC;"></span></p><p><span style="font-family:'微软雅黑';font-size:12px;color:#999999;">返回頂部</span></p>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <!-- 顶部热区 (热区) -->
-      <div id="u265" class="ax_default" data-label="顶部热区">
-      </div>
-
-      <!-- Unnamed (精简底部) -->
-
-      <!-- 底部信息 (组合) -->
-      <div id="u267" class="ax_default" data-label="底部信息" data-left="0" data-top="0" data-width="1300" data-height="60">
-
-        <!-- 背景 (动态面板) -->
-        <div id="u268" class="ax_default" data-label="背景">
-          <div id="u268_state0" class="panel_state" data-label="State1" style="">
-            <div id="u268_state0_content" class="panel_state_content">
-            </div>
-          </div>
-        </div>
-
-        <!-- 版權說明 (矩形) -->
-        <div id="u269" class="ax_default _默认样式" data-label="版權說明">
-          <div id="u269_div" class=""></div>
-          <!-- Unnamed () -->
-          <div id="u270" class="text">
-            <p><span>版權© 2004-2018 深圳市遞四方速遞有限公司 粤ICP備 12019163號-7 系統研發與維護：深圳市遞四方速遞有限公司</span></p>
-          </div>
-        </div>
-      </div>
-
-      <!-- Unnamed (矩形) -->
-      <div id="u271" class="ax_default _默认样式">
-        <div id="u271_div" class=""></div>
-        <!-- Unnamed () -->
-        <div id="u272" class="text">
-          <p><span>首頁 &gt; 產品與服務 </span></p>
-        </div>
-      </div>
-    </div>
-  </body>
-</html>
+<p>其打印内容为:</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line">select * from `seeed_user` where `id` = ?</span><br><span class="line">select * from `seeed_user` where `id` != ?</span><br><span class="line">select * from `seeed_user` where `id` = ?</span><br><span class="line">select * from `seeed_user` where `id` = ? and `id` != ?</span><br></pre></td></tr></table></figure>
+<p>前两条sql明显是正确的，在缓存QueryBuilder对象之后，最后一条sql明显收到了前一条sql的影响。</p>
+<p>这里的测试是基于lumen框架(laravel框架的简化版)和phpunit，完整代码如下:</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br></pre></td><td class="code"><pre><span class="line">&lt;?php</span><br><span class="line"></span><br><span class="line">class ExampleTest extends TestCase</span><br><span class="line">&#123;</span><br><span class="line"></span><br><span class="line">    public function testQueryBuilder()</span><br><span class="line">    &#123;</span><br><span class="line">        \DB::listen(function($query)&#123;</span><br><span class="line">            echo &quot;\n&quot;,$query-&gt;sql;</span><br><span class="line">        &#125;);</span><br><span class="line">        \DB::table(&#x27;seeed_user&#x27;)-&gt;select(&#x27;*&#x27;)-&gt;where(&#x27;id&#x27;,&#x27;=&#x27;,&#x27;1&#x27;)-&gt;get();</span><br><span class="line">        \DB::table(&#x27;seeed_user&#x27;)-&gt;select(&#x27;*&#x27;)-&gt;where(&#x27;id&#x27;,&#x27;!=&#x27;,&#x27;1&#x27;)-&gt;get();</span><br><span class="line">        $table = \DB::table(&#x27;seeed_user&#x27;);</span><br><span class="line">        $table-&gt;select(&#x27;*&#x27;)-&gt;where(&#x27;id&#x27;,&#x27;=&#x27;,&#x27;1&#x27;)-&gt;get();</span><br><span class="line">        $table-&gt;select(&#x27;*&#x27;)-&gt;where(&#x27;id&#x27;,&#x27;!=&#x27;,&#x27;1&#x27;)-&gt;get();</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>使用phpunit –verbose 选项可以观察到sql的打印。</p>
+<p>另外两个值得注意的源码知识点是：</p>
+<ol>
+<li>在laravel中开启了withEloquent（在bootstrap/app.php中），实际上就有了class_alias(类别名)，就如同上面的DB类，可以直接在使用根命名空间\DB;</li>
+<li>Laravel的Database的实现如果想迁移到其余框架里面，除了向laravel一样注入配置，还可以利用里面实现的Capsule类</li>
+</ol>
 
       
     </div>
     <footer class="article-footer">
-      <a data-url="https://muyizixiu.github.io/2021/06/29/panya/%E4%BA%A7%E5%93%81%E4%B8%8E%E6%9C%8D%E5%8A%A1/" data-id="ckqhxvqgs0017phnc2qspa2av" data-title="" class="article-share-link">Share</a>
+      <a data-url="https://muyizixiu.github.io/2018/01/28/Laravel-where-cache/" data-id="ckqhy2c9y0000m0ne1dtkaeqo" data-title="Laravel where 条件缓存" class="article-share-link">Share</a>
       
       
       
@@ -374,218 +249,101 @@
 
 
   
-    <article id="post-panya/個人中心" class="h-entry article article-type-post" itemprop="blogPost" itemscope itemtype="https://schema.org/BlogPosting">
+    <article id="post-vim-map" class="h-entry article article-type-post" itemprop="blogPost" itemscope itemtype="https://schema.org/BlogPosting">
   <div class="article-meta">
-    <a href="/2021/06/29/panya/%E5%80%8B%E4%BA%BA%E4%B8%AD%E5%BF%83/" class="article-date">
-  <time class="dt-published" datetime="2021-06-29T11:00:50.970Z" itemprop="datePublished">2021-06-29</time>
+    <a href="/2017/03/18/vim-map/" class="article-date">
+  <time class="dt-published" datetime="2017-03-18T00:00:00.000Z" itemprop="datePublished">2017-03-18</time>
 </a>
     
+  <div class="article-category">
+    <a class="article-category-link" href="/categories/%E6%8A%80%E6%9C%AF/">技术</a>
+  </div>
+
   </div>
   <div class="article-inner">
     
     
+      <header class="article-header">
+        
+  
+    <h1 itemprop="name">
+      <a class="p-name article-title" href="/2017/03/18/vim-map/">vim之键映射</a>
+    </h1>
+  
+
+      </header>
+    
     <div class="e-content article-entry" itemprop="articleBody">
       
-        <!DOCTYPE html>
-<html>
-  <head>
-    <title>個人中心</title>
-    <meta http-equiv="X-UA-Compatible" content="IE=edge"/>
-    <meta http-equiv="content-type" content="text/html; charset=utf-8"/>
-    <meta name="viewport" content="width=1200, user-scalable=no"/>
-    <meta name="format-detection" content="telephone=no"/>
-    <meta name="apple-mobile-web-app-capable" content="yes"/>
-    <link href="data/apple-touch-icon.png" rel="apple-touch-icon"/>
-    <link href="resources/css/jquery-ui-themes.css" type="text/css" rel="stylesheet"/>
-    <link href="resources/css/axure_rp_page.css" type="text/css" rel="stylesheet"/>
-    <link href="data/styles.css" type="text/css" rel="stylesheet"/>
-    <link href="files/個人中心/styles.css" type="text/css" rel="stylesheet"/>
-    <link href="http://cdn.bootcss.com/font-awesome/4.7.0/css/font-awesome.css" type="text/css" rel="stylesheet"/>
-    <script src="resources/scripts/jquery-1.7.1.min.js"></script>
-    <script src="resources/scripts/jquery-ui-1.8.10.custom.min.js"></script>
-    <script src="resources/scripts/prototypePre.js"></script>
-    <script src="data/document.js"></script>
-    <script src="resources/scripts/prototypePost.js"></script>
-    <script src="files/個人中心/data.js"></script>
-    <script type="text/javascript">
-      $axure.utils.getTransparentGifPath = function() { return 'resources/images/transparent.gif'; };
-      $axure.utils.getOtherPath = function() { return 'resources/Other.html'; };
-      $axure.utils.getReloadPath = function() { return 'resources/reload.html'; };
-    </script>
-  </head>
-  <body>
-    <div id="base" class="">
-
-      <!-- Unnamed (顶部导航) -->
-
-      <!-- 顶部导航 (动态面板) -->
-      <div id="u819" class="ax_default" data-label="顶部导航">
-        <div id="u819_state0" class="panel_state" data-label="白色背景" style="">
-          <div id="u819_state0_content" class="panel_state_content">
-
-            <!-- 线条 (动态面板) -->
-            <div id="u820" class="ax_default" data-label="线条">
-              <div id="u820_state0" class="panel_state" data-label="State1" style="">
-                <div id="u820_state0_content" class="panel_state_content">
-                </div>
-              </div>
-            </div>
-
-            <!-- logo (矩形) -->
-            <div id="u821" class="ax_default _默认样式" data-label="logo">
-              <div id="u821_div" class=""></div>
-              <!-- Unnamed () -->
-              <div id="u822" class="text">
-                <p><span>4PX Logo</span></p>
-              </div>
-            </div>
-
-            <!-- 首页 (矩形) -->
-            <div id="u823" class="ax_default _默认样式" data-label="首页" selectiongroup="u818菜单1">
-              <div id="u823_div" class=""></div>
-              <!-- Unnamed () -->
-              <div id="u824" class="text">
-                <p><span>自提網點</span></p>
-              </div>
-            </div>
-
-            <!-- 产品与服务 (矩形) -->
-            <div id="u825" class="ax_default _默认样式" data-label="产品与服务" selectiongroup="u818菜单1">
-              <div id="u825_div" class=""></div>
-              <!-- Unnamed () -->
-              <div id="u826" class="text">
-                <p><span>產品與服務</span></p>
-              </div>
-            </div>
-
-            <!-- 常見問題 (矩形) -->
-            <div id="u827" class="ax_default _默认样式" data-label="常見問題" selectiongroup="u818菜单1">
-              <div id="u827_div" class=""></div>
-              <!-- Unnamed () -->
-              <div id="u828" class="text">
-                <p><span>常見問題</span></p>
-              </div>
-            </div>
-
-            <!-- 優惠活動 (矩形) -->
-            <div id="u829" class="ax_default _默认样式" data-label="優惠活動" selectiongroup="u818菜单1">
-              <div id="u829_div" class=""></div>
-              <!-- Unnamed () -->
-              <div id="u830" class="text">
-                <p><span>優惠活動</span></p>
-              </div>
-            </div>
-
-            <!-- 個人中心 (矩形) -->
-            <div id="u831" class="ax_default _默认样式" data-label="個人中心" selectiongroup="u818菜单1">
-              <div id="u831_div" class=""></div>
-              <!-- Unnamed () -->
-              <div id="u832" class="text">
-                <p><span style="font-family:'微软雅黑';font-weight:410;">個人中心&nbsp; &nbsp; </span><span style="font-family:'FontAwesome';font-weight:400;font-size:18px;"></span></p>
-              </div>
-            </div>
-
-            <!-- 产品与服务 (矩形) -->
-            <div id="u833" class="ax_default _默认样式" data-label="产品与服务" selectiongroup="u818菜单1">
-              <div id="u833_div" class=""></div>
-              <!-- Unnamed () -->
-              <div id="u834" class="text">
-                <p><span>首頁</span></p>
-              </div>
-            </div>
-
-            <!-- 個人中心 (矩形) -->
-            <div id="u835" class="ax_default _默认样式" data-label="個人中心" selectiongroup="u818菜单1">
-              <div id="u835_div" class=""></div>
-              <!-- Unnamed () -->
-              <div id="u836" class="text">
-                <p><span>企業客戶 &gt;&gt;</span></p>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <!-- Unnamed (侧边工具) -->
-
-      <!-- 侧边工具 (动态面板) -->
-      <div id="u838" class="ax_default" data-label="侧边工具">
-        <div id="u838_state0" class="panel_state" data-label="State1" style="">
-          <div id="u838_state0_content" class="panel_state_content">
-
-            <!-- Unnamed (矩形) -->
-            <div id="u839" class="ax_default _默认样式">
-              <div id="u839_div" class=""></div>
-              <!-- Unnamed () -->
-              <div id="u840" class="text">
-                <p><span style="font-family:'FontAwesome';font-size:28px;color:#CCCCCC;"></span></p><p><span style="font-family:'微软雅黑';font-size:12px;color:#999999;">在線咨詢</span></p>
-              </div>
-            </div>
-
-            <!-- Unnamed (矩形) -->
-            <div id="u841" class="ax_default _默认样式">
-              <div id="u841_div" class=""></div>
-              <!-- Unnamed () -->
-              <div id="u842" class="text">
-                <p><span style="font-family:'FontAwesome';font-size:36px;"></span></p><p><span style="font-family:'FontAwesome';font-size:12px;">運費</span><span style="font-family:'微软雅黑';font-size:12px;">計算</span></p>
-              </div>
-            </div>
-
-            <!-- TOP (矩形) -->
-            <div id="u843" class="ax_default _默认样式 ax_default_hidden" data-label="TOP" style="display:none; visibility: hidden">
-              <div id="u843_div" class=""></div>
-              <!-- Unnamed () -->
-              <div id="u844" class="text">
-                <p><span style="font-family:'FontAwesome';font-size:28px;color:#CCCCCC;"></span></p><p><span style="font-family:'微软雅黑';font-size:12px;color:#999999;">返回頂部</span></p>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <!-- 顶部热区 (热区) -->
-      <div id="u845" class="ax_default" data-label="顶部热区">
-      </div>
-
-      <!-- Unnamed (精简底部) -->
-
-      <!-- 底部信息 (组合) -->
-      <div id="u847" class="ax_default" data-label="底部信息" data-left="0" data-top="0" data-width="1300" data-height="60">
-
-        <!-- 背景 (动态面板) -->
-        <div id="u848" class="ax_default" data-label="背景">
-          <div id="u848_state0" class="panel_state" data-label="State1" style="">
-            <div id="u848_state0_content" class="panel_state_content">
-            </div>
-          </div>
-        </div>
-
-        <!-- 版權說明 (矩形) -->
-        <div id="u849" class="ax_default _默认样式" data-label="版權說明">
-          <div id="u849_div" class=""></div>
-          <!-- Unnamed () -->
-          <div id="u850" class="text">
-            <p><span>版權© 2004-2018 深圳市遞四方速遞有限公司 粤ICP備 12019163號-7 系統研發與維護：深圳市遞四方速遞有限公司</span></p>
-          </div>
-        </div>
-      </div>
-
-      <!-- Unnamed (矩形) -->
-      <div id="u851" class="ax_default _默认样式">
-        <div id="u851_div" class=""></div>
-        <!-- Unnamed () -->
-        <div id="u852" class="text">
-          <p><span>個人中心 &gt; </span></p>
-        </div>
-      </div>
-    </div>
-  </body>
-</html>
+        <p>前面我有两篇文章，关于vim的<a target="_blank" rel="noopener" href="http://blog.muyizixiu.cn/vim/">入门</a>和<a target="_blank" rel="noopener" href="http://blog.muyizixiu.cn/vim-autocmd/">autocmd</a>，随着对vim使用的更加深入，vim的配置便不得不提了！</p>
+<h2 id="keycodes"><a href="#keycodes" class="headerlink" title="keycodes"></a>keycodes</h2><p>在vim脚本中，键的映射总是伴随着一些奇怪的符号！例&lt;TAB&gt;,&lt;ESC&gt;这些从字面上可以揣测出来的tab键和esc键，还有些难以猜测的，&lt;S-…&gt;,&lt;A-…&gt;,&lt;CR&gt;。这些事vim的keycode。<br>&lt;S-…&gt;和&lt;A-…&gt;是组合键，前者是指shift键组合其余的按键，后者则是Alt键的组合。例如&lt;S-r&gt;,则是指shit组合字母r键。<br>查看每一个详细的按键，在命令模式下，输入:h keycodes 即可</p>
+<h2 id="map"><a href="#map" class="headerlink" title="map"></a>map</h2><p>键映射的关键字是各种map。</p>
+<table>
+<thead>
+<tr>
+<th align="left">命令</th>
+<th align="center">Normal(常规模式)</th>
+<th align="center">Visual(可视化)</th>
+<th align="center">Insert(插入模式)</th>
+<th align="center">Command(命令行模式)</th>
+</tr>
+</thead>
+<tbody><tr>
+<td align="left">:map</td>
+<td align="center">有效</td>
+<td align="center">有效</td>
+<td align="center"></td>
+<td align="center"></td>
+</tr>
+<tr>
+<td align="left">:nmap</td>
+<td align="center">仅在该模式有效</td>
+<td align="center"></td>
+<td align="center"></td>
+<td align="center"></td>
+</tr>
+<tr>
+<td align="left">:vmap</td>
+<td align="center"></td>
+<td align="center">仅在该模式有效</td>
+<td align="center"></td>
+<td align="center"></td>
+</tr>
+<tr>
+<td align="left">:map!</td>
+<td align="center"></td>
+<td align="center"></td>
+<td align="center"></td>
+<td align="center">有效</td>
+</tr>
+<tr>
+<td align="left">:imap</td>
+<td align="center"></td>
+<td align="center"></td>
+<td align="center">仅在该模式有效</td>
+<td align="center"></td>
+</tr>
+<tr>
+<td align="left">:cmap</td>
+<td align="center"></td>
+<td align="center"></td>
+<td align="center"></td>
+<td align="center">仅在该模式有效</td>
+</tr>
+</tbody></table>
+<p>可以看出，map加不同的前缀和后缀组成了不同的映射方式。要注意的是，这里的前缀，n,i,v,c都是对应在各自的模式下才生效。以上所有的映射都是嵌套的（nested），当把一个键或者组合键映射到另一个键或者组合键时，被映射的键或者组合键又映射到另外的键时，会向下嵌套。<br>例如：</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">map a b</span><br><span class="line">map b c</span><br></pre></td></tr></table></figure>
+<p>就等同于将a映射至了c,如果不想发生这种副作用时，在map前加入nore。inoremap,noremap,cnoremap等映射则不发生嵌套。</p>
+<h2 id="快捷键"><a href="#快捷键" class="headerlink" title="快捷键"></a>快捷键</h2><p>仅仅是将一个键映射为另外一个键是没有多大意义的，map映射可以将键映射到命令上。</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">map &lt;S-r&gt; call reload()</span><br></pre></td></tr></table></figure>
+<p>shit组合字母r键，则调用了reload函数，当然，实际上vim没有reload这个函数。<br>这就是vim快捷键的配置。</p>
+<h2 id="清除映射"><a href="#清除映射" class="headerlink" title="清除映射"></a>清除映射</h2><p>mapclear可以清除所有map的映射，单个映射的清楚则是在对应的映射命令字的map前面加上字母un。</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br></pre></td><td class="code"><pre><span class="line">map a b</span><br><span class="line">umap a</span><br><span class="line">imap &lt;S-c&gt;</span><br><span class="line">iunmap &lt;S-c&gt;</span><br><span class="line">&quot;清除所有map的映射则使用mapclear</span><br><span class="line">mapclear</span><br><span class="line">&quot;清除所有imap的映射则使用imapclear</span><br><span class="line">imapclear</span><br></pre></td></tr></table></figure>
 
       
     </div>
     <footer class="article-footer">
-      <a data-url="https://muyizixiu.github.io/2021/06/29/panya/%E5%80%8B%E4%BA%BA%E4%B8%AD%E5%BF%83/" data-id="ckqhxvqgt0019phnc35la33zl" data-title="" class="article-share-link">Share</a>
+      <a data-url="https://muyizixiu.github.io/2017/03/18/vim-map/" data-id="ckqhy2cat000zm0nefyg4ccrk" data-title="vim之键映射" class="article-share-link">Share</a>
       
       
       
@@ -597,218 +355,58 @@
 
 
   
-    <article id="post-panya/優惠活動" class="h-entry article article-type-post" itemprop="blogPost" itemscope itemtype="https://schema.org/BlogPosting">
+    <article id="post-hexo" class="h-entry article article-type-post" itemprop="blogPost" itemscope itemtype="https://schema.org/BlogPosting">
   <div class="article-meta">
-    <a href="/2021/06/29/panya/%E5%84%AA%E6%83%A0%E6%B4%BB%E5%8B%95/" class="article-date">
-  <time class="dt-published" datetime="2021-06-29T11:00:50.970Z" itemprop="datePublished">2021-06-29</time>
+    <a href="/2017/02/28/hexo/" class="article-date">
+  <time class="dt-published" datetime="2017-02-28T00:00:00.000Z" itemprop="datePublished">2017-02-28</time>
 </a>
     
+  <div class="article-category">
+    <a class="article-category-link" href="/categories/%E6%8A%80%E6%9C%AF/">技术</a>
+  </div>
+
   </div>
   <div class="article-inner">
     
     
+      <header class="article-header">
+        
+  
+    <h1 itemprop="name">
+      <a class="p-name article-title" href="/2017/02/28/hexo/">hexo博客指南</a>
+    </h1>
+  
+
+      </header>
+    
     <div class="e-content article-entry" itemprop="articleBody">
       
-        <!DOCTYPE html>
-<html>
-  <head>
-    <title>優惠活動</title>
-    <meta http-equiv="X-UA-Compatible" content="IE=edge"/>
-    <meta http-equiv="content-type" content="text/html; charset=utf-8"/>
-    <meta name="viewport" content="width=1200, user-scalable=no"/>
-    <meta name="format-detection" content="telephone=no"/>
-    <meta name="apple-mobile-web-app-capable" content="yes"/>
-    <link href="data/apple-touch-icon.png" rel="apple-touch-icon"/>
-    <link href="resources/css/jquery-ui-themes.css" type="text/css" rel="stylesheet"/>
-    <link href="resources/css/axure_rp_page.css" type="text/css" rel="stylesheet"/>
-    <link href="data/styles.css" type="text/css" rel="stylesheet"/>
-    <link href="files/優惠活動/styles.css" type="text/css" rel="stylesheet"/>
-    <link href="http://cdn.bootcss.com/font-awesome/4.7.0/css/font-awesome.css" type="text/css" rel="stylesheet"/>
-    <script src="resources/scripts/jquery-1.7.1.min.js"></script>
-    <script src="resources/scripts/jquery-ui-1.8.10.custom.min.js"></script>
-    <script src="resources/scripts/prototypePre.js"></script>
-    <script src="data/document.js"></script>
-    <script src="resources/scripts/prototypePost.js"></script>
-    <script src="files/優惠活動/data.js"></script>
-    <script type="text/javascript">
-      $axure.utils.getTransparentGifPath = function() { return 'resources/images/transparent.gif'; };
-      $axure.utils.getOtherPath = function() { return 'resources/Other.html'; };
-      $axure.utils.getReloadPath = function() { return 'resources/reload.html'; };
-    </script>
-  </head>
-  <body>
-    <div id="base" class="">
-
-      <!-- Unnamed (顶部导航) -->
-
-      <!-- 顶部导航 (动态面板) -->
-      <div id="u749" class="ax_default" data-label="顶部导航">
-        <div id="u749_state0" class="panel_state" data-label="白色背景" style="">
-          <div id="u749_state0_content" class="panel_state_content">
-
-            <!-- 线条 (动态面板) -->
-            <div id="u750" class="ax_default" data-label="线条">
-              <div id="u750_state0" class="panel_state" data-label="State1" style="">
-                <div id="u750_state0_content" class="panel_state_content">
-                </div>
-              </div>
-            </div>
-
-            <!-- logo (矩形) -->
-            <div id="u751" class="ax_default _默认样式" data-label="logo">
-              <div id="u751_div" class=""></div>
-              <!-- Unnamed () -->
-              <div id="u752" class="text">
-                <p><span>4PX Logo</span></p>
-              </div>
-            </div>
-
-            <!-- 首页 (矩形) -->
-            <div id="u753" class="ax_default _默认样式" data-label="首页" selectiongroup="u748菜单1">
-              <div id="u753_div" class=""></div>
-              <!-- Unnamed () -->
-              <div id="u754" class="text">
-                <p><span>自提網點</span></p>
-              </div>
-            </div>
-
-            <!-- 产品与服务 (矩形) -->
-            <div id="u755" class="ax_default _默认样式" data-label="产品与服务" selectiongroup="u748菜单1">
-              <div id="u755_div" class=""></div>
-              <!-- Unnamed () -->
-              <div id="u756" class="text">
-                <p><span>產品與服務</span></p>
-              </div>
-            </div>
-
-            <!-- 常見問題 (矩形) -->
-            <div id="u757" class="ax_default _默认样式" data-label="常見問題" selectiongroup="u748菜单1">
-              <div id="u757_div" class=""></div>
-              <!-- Unnamed () -->
-              <div id="u758" class="text">
-                <p><span>常見問題</span></p>
-              </div>
-            </div>
-
-            <!-- 優惠活動 (矩形) -->
-            <div id="u759" class="ax_default _默认样式" data-label="優惠活動" selectiongroup="u748菜单1">
-              <div id="u759_div" class=""></div>
-              <!-- Unnamed () -->
-              <div id="u760" class="text">
-                <p><span>優惠活動</span></p>
-              </div>
-            </div>
-
-            <!-- 個人中心 (矩形) -->
-            <div id="u761" class="ax_default _默认样式" data-label="個人中心" selectiongroup="u748菜单1">
-              <div id="u761_div" class=""></div>
-              <!-- Unnamed () -->
-              <div id="u762" class="text">
-                <p><span style="font-family:'微软雅黑';font-weight:410;">個人中心&nbsp; &nbsp; </span><span style="font-family:'FontAwesome';font-weight:400;font-size:18px;"></span></p>
-              </div>
-            </div>
-
-            <!-- 产品与服务 (矩形) -->
-            <div id="u763" class="ax_default _默认样式" data-label="产品与服务" selectiongroup="u748菜单1">
-              <div id="u763_div" class=""></div>
-              <!-- Unnamed () -->
-              <div id="u764" class="text">
-                <p><span>首頁</span></p>
-              </div>
-            </div>
-
-            <!-- 個人中心 (矩形) -->
-            <div id="u765" class="ax_default _默认样式" data-label="個人中心" selectiongroup="u748菜单1">
-              <div id="u765_div" class=""></div>
-              <!-- Unnamed () -->
-              <div id="u766" class="text">
-                <p><span>企業客戶 &gt;&gt;</span></p>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <!-- Unnamed (侧边工具) -->
-
-      <!-- 侧边工具 (动态面板) -->
-      <div id="u768" class="ax_default" data-label="侧边工具">
-        <div id="u768_state0" class="panel_state" data-label="State1" style="">
-          <div id="u768_state0_content" class="panel_state_content">
-
-            <!-- Unnamed (矩形) -->
-            <div id="u769" class="ax_default _默认样式">
-              <div id="u769_div" class=""></div>
-              <!-- Unnamed () -->
-              <div id="u770" class="text">
-                <p><span style="font-family:'FontAwesome';font-size:28px;color:#CCCCCC;"></span></p><p><span style="font-family:'微软雅黑';font-size:12px;color:#999999;">在線咨詢</span></p>
-              </div>
-            </div>
-
-            <!-- Unnamed (矩形) -->
-            <div id="u771" class="ax_default _默认样式">
-              <div id="u771_div" class=""></div>
-              <!-- Unnamed () -->
-              <div id="u772" class="text">
-                <p><span style="font-family:'FontAwesome';font-size:36px;"></span></p><p><span style="font-family:'FontAwesome';font-size:12px;">運費</span><span style="font-family:'微软雅黑';font-size:12px;">計算</span></p>
-              </div>
-            </div>
-
-            <!-- TOP (矩形) -->
-            <div id="u773" class="ax_default _默认样式 ax_default_hidden" data-label="TOP" style="display:none; visibility: hidden">
-              <div id="u773_div" class=""></div>
-              <!-- Unnamed () -->
-              <div id="u774" class="text">
-                <p><span style="font-family:'FontAwesome';font-size:28px;color:#CCCCCC;"></span></p><p><span style="font-family:'微软雅黑';font-size:12px;color:#999999;">返回頂部</span></p>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <!-- 顶部热区 (热区) -->
-      <div id="u775" class="ax_default" data-label="顶部热区">
-      </div>
-
-      <!-- Unnamed (精简底部) -->
-
-      <!-- 底部信息 (组合) -->
-      <div id="u777" class="ax_default" data-label="底部信息" data-left="0" data-top="0" data-width="1300" data-height="60">
-
-        <!-- 背景 (动态面板) -->
-        <div id="u778" class="ax_default" data-label="背景">
-          <div id="u778_state0" class="panel_state" data-label="State1" style="">
-            <div id="u778_state0_content" class="panel_state_content">
-            </div>
-          </div>
-        </div>
-
-        <!-- 版權說明 (矩形) -->
-        <div id="u779" class="ax_default _默认样式" data-label="版權說明">
-          <div id="u779_div" class=""></div>
-          <!-- Unnamed () -->
-          <div id="u780" class="text">
-            <p><span>版權© 2004-2018 深圳市遞四方速遞有限公司 粤ICP備 12019163號-7 系統研發與維護：深圳市遞四方速遞有限公司</span></p>
-          </div>
-        </div>
-      </div>
-
-      <!-- Unnamed (矩形) -->
-      <div id="u781" class="ax_default _默认样式">
-        <div id="u781_div" class=""></div>
-        <!-- Unnamed () -->
-        <div id="u782" class="text">
-          <p><span>首頁 &gt; 優惠活動 </span></p>
-        </div>
-      </div>
-    </div>
-  </body>
-</html>
+        <p>最近因为着迷于银河系漫游指南，所以大言不惭地把标题标为指南。其实这里只是我利用hexo搭建博客的小小经验而已,我原来有在daocloud上搭建一个免费的博客，用来尝尝docker的鲜。现在博客资源过期，就鼓捣下把博客迁移到自己的服务器上来了！</p>
+<h2 id="hexo"><a href="#hexo" class="headerlink" title="hexo"></a>hexo</h2><p>hexo的<a target="_blank" rel="noopener" href="https://hexo.io/">文档</a>看上去很复杂，其实用起来是相当简单的，不像我原来使用的ghost要依赖数据库，整个目录也是干净透明的。</p>
+<h3 id="安装"><a href="#安装" class="headerlink" title="安装"></a>安装</h3><figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">npm install -g hexo-cli</span><br></pre></td></tr></table></figure>
+<p>有nodejs环境的话，一句话搞定。-g选项指明我们安装到全局路径中，默认会在环境变量中的path下安装一个可执行文件。<br>如果需要安装nodejs的话，可以参考各个平台的安装方式，我在centos下执行的是：</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">#yum -y install nodejs</span><br></pre></td></tr></table></figure>
+<p>也是相当简单的！</p>
+<h3 id="使用"><a href="#使用" class="headerlink" title="使用"></a>使用</h3><p>使用的文档相对比较复杂,实际的操作其实是相当简单的,了解几个相对简单的概念就能灵活使用hexo了。<br>首先,大胆地建立一个工程</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">hexo init hello</span><br></pre></td></tr></table></figure>
+<p>建立以hello为根目录的工程之后，了解如下几个文件夹和文件的概念就可以顺利使用了！</p>
+<ol>
+<li><p>文章目录<br>在hello/source/_posts/下，就是你的MarkDown文件了，你在这里写md的文件，hexo会替你生产出文章来的</p>
+</li>
+<li><p>网页目录<br>hello/publics/就是你的网页了，hexo generate之后，这里便有所有在md文章目录下的所有对应的网页了，不依赖其余目录，这就是一个可以独立导出的网页目录。配合nignx或者其他网络server便可以实现网页浏览博客的效果了！值得一提的是，官方自己也实现了一个webserver 命令：hexo server，可以用来直接访问该网页目录。</p>
+</li>
+<li><p>配置文件<br>由于你只提供了文章，想要在样式和一些指定内容上做些自己的变更，就需要在配置文件上做相应的变更了。文件的地址是：hello/_config.yml（其实还有themes下面的配置）<br>网站的标题，副标题，描述等等个性化的设置都在这个文件里配置，详细的文档可以参观<a target="_blank" rel="noopener" href="https://hexo.io/docs/configuration.html">https://hexo.io/docs/configuration.html</a></p>
+</li>
+<li><p>主题<br>博客要想华丽起来，离不开<a target="_blank" rel="noopener" href="https://hexo.io/themes/">hexo themes</a>，大量的主题，在GitHub都有源，下载下来，或者git clone下来，到hello/themes/下面，然后在配置文件里面指定主题即可。<br>在下载下来的主题文件夹里面也会有_config.yml的配置文件，实现各个主题个性化！我使用的是一款简单的，文字友好型的<a target="_blank" rel="noopener" href="https://github.com/gaoryrt/hexo-theme-pln">主题</a>!</p>
+</li>
+<li><p>我的策略<br>hexo generate依赖工程和你的md文件，生成了静态的网页，网页目录是可以脱离于工程存在的，同时，我也将md的文件分离了出来，用git进行管理，这样，我的文章便在github上保留了<a target="_blank" rel="noopener" href="https://github.com/muyizixiu/blog">一份源</a>，可以脱离这个工程进行写作。同时我将工程中的文章目录(hello/source/_posts),指向我的github地址，每次新的文章被提交时，由github的webhook触发远程脚本.脚本将文章pull下来，同时用hexo generate生成静态的网页，再将其复制到webserver所指定的地址。</p>
+</li>
+</ol>
 
       
     </div>
     <footer class="article-footer">
-      <a data-url="https://muyizixiu.github.io/2021/06/29/panya/%E5%84%AA%E6%83%A0%E6%B4%BB%E5%8B%95/" data-id="ckqhxvqgw001bphncf78ubxgo" data-title="" class="article-share-link">Share</a>
+      <a data-url="https://muyizixiu.github.io/2017/02/28/hexo/" data-id="ckqhy2cak000km0ne0j37cotx" data-title="hexo博客指南" class="article-share-link">Share</a>
       
       
       
@@ -820,55 +418,41 @@
 
 
   
-    <article id="post-panya/合箱" class="h-entry article article-type-post" itemprop="blogPost" itemscope itemtype="https://schema.org/BlogPosting">
+    <article id="post-ios" class="h-entry article article-type-post" itemprop="blogPost" itemscope itemtype="https://schema.org/BlogPosting">
   <div class="article-meta">
-    <a href="/2021/06/29/panya/%E5%90%88%E7%AE%B1/" class="article-date">
-  <time class="dt-published" datetime="2021-06-29T11:00:50.970Z" itemprop="datePublished">2021-06-29</time>
+    <a href="/2017/02/28/ios/" class="article-date">
+  <time class="dt-published" datetime="2017-02-28T00:00:00.000Z" itemprop="datePublished">2017-02-28</time>
 </a>
     
+  <div class="article-category">
+    <a class="article-category-link" href="/categories/%E6%8A%80%E6%9C%AF/">技术</a>
+  </div>
+
   </div>
   <div class="article-inner">
     
     
+      <header class="article-header">
+        
+  
+    <h1 itemprop="name">
+      <a class="p-name article-title" href="/2017/02/28/ios/">IOS之旅</a>
+    </h1>
+  
+
+      </header>
+    
     <div class="e-content article-entry" itemprop="articleBody">
       
-        <!DOCTYPE html>
-<html>
-  <head>
-    <title>合箱</title>
-    <meta http-equiv="X-UA-Compatible" content="IE=edge"/>
-    <meta http-equiv="content-type" content="text/html; charset=utf-8"/>
-    <meta name="viewport" content="width=1200, user-scalable=no"/>
-    <meta name="format-detection" content="telephone=no"/>
-    <meta name="apple-mobile-web-app-capable" content="yes"/>
-    <link href="data/apple-touch-icon.png" rel="apple-touch-icon"/>
-    <link href="resources/css/jquery-ui-themes.css" type="text/css" rel="stylesheet"/>
-    <link href="resources/css/axure_rp_page.css" type="text/css" rel="stylesheet"/>
-    <link href="data/styles.css" type="text/css" rel="stylesheet"/>
-    <link href="files/合箱/styles.css" type="text/css" rel="stylesheet"/>
-    <link href="http://cdn.bootcss.com/font-awesome/4.7.0/css/font-awesome.css" type="text/css" rel="stylesheet"/>
-    <script src="resources/scripts/jquery-1.7.1.min.js"></script>
-    <script src="resources/scripts/jquery-ui-1.8.10.custom.min.js"></script>
-    <script src="resources/scripts/prototypePre.js"></script>
-    <script src="data/document.js"></script>
-    <script src="resources/scripts/prototypePost.js"></script>
-    <script src="files/合箱/data.js"></script>
-    <script type="text/javascript">
-      $axure.utils.getTransparentGifPath = function() { return 'resources/images/transparent.gif'; };
-      $axure.utils.getOtherPath = function() { return 'resources/Other.html'; };
-      $axure.utils.getReloadPath = function() { return 'resources/reload.html'; };
-    </script>
-  </head>
-  <body>
-    <div id="base" class="">
-    </div>
-  </body>
-</html>
-
+        <p>兜兜转转，发现拓展总是要比深耕来得容易，于是乎，拥抱了ios，再一次地体味了久违的兴奋之感。在我而言，前端的引路人其实是React，这一优秀的web框架改变了我对于前端操作dom的无聊印象，flex亦使得布局不在垒砌像素。</p>
+<p>初识ios，便惊讶于objective-C的繁杂，以及浩瀚的API。一开始，犯了心情急迫，高估自己，低看敌方的错误。花了一个小时不多，咕噜吞枣似地把objective-C的语法过了一遍，操之过急地开始学习ios。objective-C的语法跟流行语言相差很大，又有C的黑魔法加持，建议要对C语言有一定了解，才去好好学习objective-C。斯坦福大学出品的IOS开发教程很是经典，借助于它，我对ios的整体才有了一定的认识，十分感激。</p>
+<h3 id="UI篇"><a href="#UI篇" class="headerlink" title="UI篇"></a>UI篇</h3><p>UI和布局是入门的好去处，熟悉label，Button，TextField，switch，tableview，scrollview等常用的view的基本属性，其余的留待工作中加深体验。</p>
+<h3 id="事件篇"><a href="#事件篇" class="headerlink" title="事件篇"></a>事件篇</h3><p>手势和MVC赋予UI和布局以活力，使你的app开始有了生命力。MVC模式理解简单，认真实践这一模式却要求开发者责任和技巧并存。这个时候练习就显得相当地重要了，跟着Apple<a target="_blank" rel="noopener" href="https://developer.apple.com/library/content/referencelibrary/GettingStarted/DevelopiOSAppsSwift/index.html">官方的教程</a>走了一遍，也是相当划得来的买卖。</p>
+<h3 id="网络和线程"><a href="#网络和线程" class="headerlink" title="网络和线程"></a>网络和线程</h3>
       
     </div>
     <footer class="article-footer">
-      <a data-url="https://muyizixiu.github.io/2021/06/29/panya/%E5%90%88%E7%AE%B1/" data-id="ckqhxvqgz001dphncbodr8j3k" data-title="" class="article-share-link">Share</a>
+      <a data-url="https://muyizixiu.github.io/2017/02/28/ios/" data-id="ckqhy2cam000mm0ne9awa0orn" data-title="IOS之旅" class="article-share-link">Share</a>
       
       
       
@@ -880,218 +464,47 @@
 
 
   
-    <article id="post-panya/常見問題" class="h-entry article article-type-post" itemprop="blogPost" itemscope itemtype="https://schema.org/BlogPosting">
+    <article id="post-linux-sar" class="h-entry article article-type-post" itemprop="blogPost" itemscope itemtype="https://schema.org/BlogPosting">
   <div class="article-meta">
-    <a href="/2021/06/29/panya/%E5%B8%B8%E8%A6%8B%E5%95%8F%E9%A1%8C/" class="article-date">
-  <time class="dt-published" datetime="2021-06-29T11:00:50.970Z" itemprop="datePublished">2021-06-29</time>
+    <a href="/2016/10/11/linux-sar/" class="article-date">
+  <time class="dt-published" datetime="2016-10-11T00:00:00.000Z" itemprop="datePublished">2016-10-11</time>
 </a>
     
+  <div class="article-category">
+    <a class="article-category-link" href="/categories/%E6%8A%80%E6%9C%AF/">技术</a>
+  </div>
+
   </div>
   <div class="article-inner">
     
     
+      <header class="article-header">
+        
+  
+    <h1 itemprop="name">
+      <a class="p-name article-title" href="/2016/10/11/linux-sar/">Linux之sar</a>
+    </h1>
+  
+
+      </header>
+    
     <div class="e-content article-entry" itemprop="articleBody">
       
-        <!DOCTYPE html>
-<html>
-  <head>
-    <title>常見問題</title>
-    <meta http-equiv="X-UA-Compatible" content="IE=edge"/>
-    <meta http-equiv="content-type" content="text/html; charset=utf-8"/>
-    <meta name="viewport" content="width=1200, user-scalable=no"/>
-    <meta name="format-detection" content="telephone=no"/>
-    <meta name="apple-mobile-web-app-capable" content="yes"/>
-    <link href="data/apple-touch-icon.png" rel="apple-touch-icon"/>
-    <link href="resources/css/jquery-ui-themes.css" type="text/css" rel="stylesheet"/>
-    <link href="resources/css/axure_rp_page.css" type="text/css" rel="stylesheet"/>
-    <link href="data/styles.css" type="text/css" rel="stylesheet"/>
-    <link href="files/常見問題/styles.css" type="text/css" rel="stylesheet"/>
-    <link href="http://cdn.bootcss.com/font-awesome/4.7.0/css/font-awesome.css" type="text/css" rel="stylesheet"/>
-    <script src="resources/scripts/jquery-1.7.1.min.js"></script>
-    <script src="resources/scripts/jquery-ui-1.8.10.custom.min.js"></script>
-    <script src="resources/scripts/prototypePre.js"></script>
-    <script src="data/document.js"></script>
-    <script src="resources/scripts/prototypePost.js"></script>
-    <script src="files/常見問題/data.js"></script>
-    <script type="text/javascript">
-      $axure.utils.getTransparentGifPath = function() { return 'resources/images/transparent.gif'; };
-      $axure.utils.getOtherPath = function() { return 'resources/Other.html'; };
-      $axure.utils.getReloadPath = function() { return 'resources/reload.html'; };
-    </script>
-  </head>
-  <body>
-    <div id="base" class="">
-
-      <!-- Unnamed (顶部导航) -->
-
-      <!-- 顶部导航 (动态面板) -->
-      <div id="u784" class="ax_default" data-label="顶部导航">
-        <div id="u784_state0" class="panel_state" data-label="白色背景" style="">
-          <div id="u784_state0_content" class="panel_state_content">
-
-            <!-- 线条 (动态面板) -->
-            <div id="u785" class="ax_default" data-label="线条">
-              <div id="u785_state0" class="panel_state" data-label="State1" style="">
-                <div id="u785_state0_content" class="panel_state_content">
-                </div>
-              </div>
-            </div>
-
-            <!-- logo (矩形) -->
-            <div id="u786" class="ax_default _默认样式" data-label="logo">
-              <div id="u786_div" class=""></div>
-              <!-- Unnamed () -->
-              <div id="u787" class="text">
-                <p><span>4PX Logo</span></p>
-              </div>
-            </div>
-
-            <!-- 首页 (矩形) -->
-            <div id="u788" class="ax_default _默认样式" data-label="首页" selectiongroup="u783菜单1">
-              <div id="u788_div" class=""></div>
-              <!-- Unnamed () -->
-              <div id="u789" class="text">
-                <p><span>自提網點</span></p>
-              </div>
-            </div>
-
-            <!-- 产品与服务 (矩形) -->
-            <div id="u790" class="ax_default _默认样式" data-label="产品与服务" selectiongroup="u783菜单1">
-              <div id="u790_div" class=""></div>
-              <!-- Unnamed () -->
-              <div id="u791" class="text">
-                <p><span>產品與服務</span></p>
-              </div>
-            </div>
-
-            <!-- 常見問題 (矩形) -->
-            <div id="u792" class="ax_default _默认样式" data-label="常見問題" selectiongroup="u783菜单1">
-              <div id="u792_div" class=""></div>
-              <!-- Unnamed () -->
-              <div id="u793" class="text">
-                <p><span>常見問題</span></p>
-              </div>
-            </div>
-
-            <!-- 優惠活動 (矩形) -->
-            <div id="u794" class="ax_default _默认样式" data-label="優惠活動" selectiongroup="u783菜单1">
-              <div id="u794_div" class=""></div>
-              <!-- Unnamed () -->
-              <div id="u795" class="text">
-                <p><span>優惠活動</span></p>
-              </div>
-            </div>
-
-            <!-- 個人中心 (矩形) -->
-            <div id="u796" class="ax_default _默认样式" data-label="個人中心" selectiongroup="u783菜单1">
-              <div id="u796_div" class=""></div>
-              <!-- Unnamed () -->
-              <div id="u797" class="text">
-                <p><span style="font-family:'微软雅黑';font-weight:410;">個人中心&nbsp; &nbsp; </span><span style="font-family:'FontAwesome';font-weight:400;font-size:18px;"></span></p>
-              </div>
-            </div>
-
-            <!-- 产品与服务 (矩形) -->
-            <div id="u798" class="ax_default _默认样式" data-label="产品与服务" selectiongroup="u783菜单1">
-              <div id="u798_div" class=""></div>
-              <!-- Unnamed () -->
-              <div id="u799" class="text">
-                <p><span>首頁</span></p>
-              </div>
-            </div>
-
-            <!-- 個人中心 (矩形) -->
-            <div id="u800" class="ax_default _默认样式" data-label="個人中心" selectiongroup="u783菜单1">
-              <div id="u800_div" class=""></div>
-              <!-- Unnamed () -->
-              <div id="u801" class="text">
-                <p><span>企業客戶 &gt;&gt;</span></p>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <!-- Unnamed (侧边工具) -->
-
-      <!-- 侧边工具 (动态面板) -->
-      <div id="u803" class="ax_default" data-label="侧边工具">
-        <div id="u803_state0" class="panel_state" data-label="State1" style="">
-          <div id="u803_state0_content" class="panel_state_content">
-
-            <!-- Unnamed (矩形) -->
-            <div id="u804" class="ax_default _默认样式">
-              <div id="u804_div" class=""></div>
-              <!-- Unnamed () -->
-              <div id="u805" class="text">
-                <p><span style="font-family:'FontAwesome';font-size:28px;color:#CCCCCC;"></span></p><p><span style="font-family:'微软雅黑';font-size:12px;color:#999999;">在線咨詢</span></p>
-              </div>
-            </div>
-
-            <!-- Unnamed (矩形) -->
-            <div id="u806" class="ax_default _默认样式">
-              <div id="u806_div" class=""></div>
-              <!-- Unnamed () -->
-              <div id="u807" class="text">
-                <p><span style="font-family:'FontAwesome';font-size:36px;"></span></p><p><span style="font-family:'FontAwesome';font-size:12px;">運費</span><span style="font-family:'微软雅黑';font-size:12px;">計算</span></p>
-              </div>
-            </div>
-
-            <!-- TOP (矩形) -->
-            <div id="u808" class="ax_default _默认样式 ax_default_hidden" data-label="TOP" style="display:none; visibility: hidden">
-              <div id="u808_div" class=""></div>
-              <!-- Unnamed () -->
-              <div id="u809" class="text">
-                <p><span style="font-family:'FontAwesome';font-size:28px;color:#CCCCCC;"></span></p><p><span style="font-family:'微软雅黑';font-size:12px;color:#999999;">返回頂部</span></p>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <!-- 顶部热区 (热区) -->
-      <div id="u810" class="ax_default" data-label="顶部热区">
-      </div>
-
-      <!-- Unnamed (精简底部) -->
-
-      <!-- 底部信息 (组合) -->
-      <div id="u812" class="ax_default" data-label="底部信息" data-left="0" data-top="0" data-width="1300" data-height="60">
-
-        <!-- 背景 (动态面板) -->
-        <div id="u813" class="ax_default" data-label="背景">
-          <div id="u813_state0" class="panel_state" data-label="State1" style="">
-            <div id="u813_state0_content" class="panel_state_content">
-            </div>
-          </div>
-        </div>
-
-        <!-- 版權說明 (矩形) -->
-        <div id="u814" class="ax_default _默认样式" data-label="版權說明">
-          <div id="u814_div" class=""></div>
-          <!-- Unnamed () -->
-          <div id="u815" class="text">
-            <p><span>版權© 2004-2018 深圳市遞四方速遞有限公司 粤ICP備 12019163號-7 系統研發與維護：深圳市遞四方速遞有限公司</span></p>
-          </div>
-        </div>
-      </div>
-
-      <!-- Unnamed (矩形) -->
-      <div id="u816" class="ax_default _默认样式">
-        <div id="u816_div" class=""></div>
-        <!-- Unnamed () -->
-        <div id="u817" class="text">
-          <p><span>首頁 &gt; 常見問題&nbsp; </span></p>
-        </div>
-      </div>
-    </div>
-  </body>
-</html>
+        <p>一个好的linuxer想要熟悉自己正在玩弄的系统的状态，可不能只看360的悬浮球。linux下查看系统状态的命令多如牛毛！像top，lsof，fdisk，iostat，du，甚至乎cat一下/proc目录下文件，读读这些晦涩难懂的数据也是可以一窥系统全貌的。然而，居然有杀手般的sar命令在此，我们为何不来一发呢！</p>
+<h2 id="sar"><a href="#sar" class="headerlink" title="sar"></a>sar</h2><p>超长的用法如下：</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">sar  [ -A ] [ -b ] [ -B ] [ -c ] [ -d ] [ -i interval ] [ -p ] [ -q ] [ -r ] [ -R ] [ -t ] [ -u ] [ -v ] [ -V ] [ -w ] [ -W ] [ -y ] [ -n &#123; DEV | EDEV | NFS | NFSD</span><br><span class="line">       | SOCK | ALL &#125; ] [ -x &#123; pid | SELF | ALL &#125; ] [ -X &#123; pid | SELF | ALL &#125; ] [ -I &#123; irq | SUM | ALL | XALL &#125; ] [ -P &#123; cpu | ALL &#125; ] [ -o [ filename ] | -f [ filename ]] [ -s [ hh:mm:ss ] ] [ -e [ hh:mm:ss ] ] [ interval [ count ] ]</span><br></pre></td></tr></table></figure>
+<p>用法乍看是有点繁杂的，其实，众多的用法是因为其可选项众多而已，可选项众多意味着其功能广泛。且其用法也是相当简洁的，众多参数对应的是：</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br></pre></td><td class="code"><pre><span class="line">-b:io状态</span><br><span class="line">-B:页交换的状态</span><br><span class="line">-c:任务创建的状态</span><br><span class="line">-d:磁盘状态</span><br><span class="line">-n:网络状态</span><br><span class="line">-u:cpu状态(无任何时，默认是查看cpu状态)</span><br><span class="line">-P:指定cpu的状态</span><br><span class="line">-q:系统负载，任务队列的状态</span><br><span class="line">-r:内存和交互分区状态</span><br><span class="line">-R:内存状态</span><br></pre></td></tr></table></figure>
+<p>其中有[ interval [ count ]参数，当指定这俩个参数事，会以interval秒去查看count次当前的状态。不指定该参数则查看从当天开始到现在时间的历史数据。</p>
+<h3 id="sar之查看网速"><a href="#sar之查看网速" class="headerlink" title="sar之查看网速"></a>sar之查看网速</h3><figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br></pre></td><td class="code"><pre><span class="line"># sar -n DEV</span><br><span class="line">12:00:01 AM     IFACE   rxpck/s   txpck/s   rxbyt/s   txbyt/s   rxcmp/s   txcmp/s  rxmcst/s</span><br><span class="line">12:10:01 AM        lo     11.10     11.10    738.91    738.91      0.00      0.00      0.00</span><br><span class="line">12:10:01 AM      eth0    167.08    170.74  29037.82  14849.14      0.00      0.00      0.00</span><br><span class="line">12:20:02 AM        lo     11.03     11.03    734.42    734.42      0.00      0.00      0.00</span><br><span class="line">12:20:02 AM      eth0    556.00    559.64  84234.67  46365.23      0.00      0.00      0.00</span><br><span class="line">12:30:02 AM        lo     11.06     11.06    735.89    735.89      0.00      0.00      0.00</span><br><span class="line">12:30:02 AM      eth0   3007.27   3010.13 433371.24 244914.96      0.00      0.00      0.00</span><br><span class="line">12:40:02 AM        lo     11.05     11.05    735.69    735.69      0.00      0.00      0.00</span><br><span class="line">12:40:02 AM      eth0    929.72    933.30 137352.27  76655.95      0.00      0.00      0.00</span><br><span class="line">12:50:01 AM        lo     11.05     11.05    735.55    735.55      0.00      0.00      0.00</span><br><span class="line">12:50:01 AM      eth0   3030.71   3034.50 434493.03 246797.75      0.00      0.00      0.00</span><br></pre></td></tr></table></figure>
+<p>选项-n需要指定额外的关键字：{ DEV | EDEV | NFS | NFSD | SOCK | ALL }，DEV指定查看网络设备上的状态。</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br></pre></td><td class="code"><pre><span class="line"># sar -n DEV 1 2</span><br><span class="line">11:26:11 AM     IFACE   rxpck/s   txpck/s   rxbyt/s   txbyt/s   rxcmp/s   txcmp/s  rxmcst/s</span><br><span class="line">11:26:12 AM        lo      0.00      0.00      0.00      0.00      0.00      0.00      0.00</span><br><span class="line">11:26:12 AM      eth0   1598.00   1602.00 226739.00 129800.00      0.00      0.00      0.00</span><br><span class="line"></span><br><span class="line">11:26:12 AM     IFACE   rxpck/s   txpck/s   rxbyt/s   txbyt/s   rxcmp/s   txcmp/s  rxmcst/s</span><br><span class="line">11:26:13 AM        lo     27.27     27.27   1857.58   1857.58      0.00      0.00      0.00</span><br><span class="line">11:26:13 AM      eth0    100.00    135.35  30420.20  15892.93      0.00      0.00      0.00</span><br></pre></td></tr></table></figure>
+<p>以一秒的速度查看俩次网络状态，IFACE是指网络设备，其中rxbyt/s（recieved）以及txbyt/s（transimitted）是指网络流量。</p>
 
       
     </div>
     <footer class="article-footer">
-      <a data-url="https://muyizixiu.github.io/2021/06/29/panya/%E5%B8%B8%E8%A6%8B%E5%95%8F%E9%A1%8C/" data-id="ckqhxvqh0001fphncaqmr7oon" data-title="" class="article-share-link">Share</a>
+      <a data-url="https://muyizixiu.github.io/2016/10/11/linux-sar/" data-id="ckqhy2can000om0ne5fkzb23r" data-title="Linux之sar" class="article-share-link">Share</a>
       
       
       
@@ -1103,236 +516,54 @@
 
 
   
-    <article id="post-panya/自提點詳情" class="h-entry article article-type-post" itemprop="blogPost" itemscope itemtype="https://schema.org/BlogPosting">
+    <article id="post-vim-autocmd" class="h-entry article article-type-post" itemprop="blogPost" itemscope itemtype="https://schema.org/BlogPosting">
   <div class="article-meta">
-    <a href="/2021/06/29/panya/%E8%87%AA%E6%8F%90%E9%BB%9E%E8%A9%B3%E6%83%85/" class="article-date">
-  <time class="dt-published" datetime="2021-06-29T11:00:50.970Z" itemprop="datePublished">2021-06-29</time>
+    <a href="/2016/10/10/vim-autocmd/" class="article-date">
+  <time class="dt-published" datetime="2016-10-10T00:00:00.000Z" itemprop="datePublished">2016-10-10</time>
 </a>
     
+  <div class="article-category">
+    <a class="article-category-link" href="/categories/%E6%8A%80%E6%9C%AF/">技术</a>
+  </div>
+
   </div>
   <div class="article-inner">
     
     
+      <header class="article-header">
+        
+  
+    <h1 itemprop="name">
+      <a class="p-name article-title" href="/2016/10/10/vim-autocmd/">vimrc之autocmd</a>
+    </h1>
+  
+
+      </header>
+    
     <div class="e-content article-entry" itemprop="articleBody">
       
-        <!DOCTYPE html>
-<html>
-  <head>
-    <title>自提點詳情</title>
-    <meta http-equiv="X-UA-Compatible" content="IE=edge"/>
-    <meta http-equiv="content-type" content="text/html; charset=utf-8"/>
-    <meta name="viewport" content="width=1200, user-scalable=no"/>
-    <meta name="format-detection" content="telephone=no"/>
-    <meta name="apple-mobile-web-app-capable" content="yes"/>
-    <link href="data/apple-touch-icon.png" rel="apple-touch-icon"/>
-    <link href="resources/css/jquery-ui-themes.css" type="text/css" rel="stylesheet"/>
-    <link href="resources/css/axure_rp_page.css" type="text/css" rel="stylesheet"/>
-    <link href="data/styles.css" type="text/css" rel="stylesheet"/>
-    <link href="files/自提點詳情/styles.css" type="text/css" rel="stylesheet"/>
-    <link href="http://cdn.bootcss.com/font-awesome/4.7.0/css/font-awesome.css" type="text/css" rel="stylesheet"/>
-    <script src="resources/scripts/jquery-1.7.1.min.js"></script>
-    <script src="resources/scripts/jquery-ui-1.8.10.custom.min.js"></script>
-    <script src="resources/scripts/prototypePre.js"></script>
-    <script src="data/document.js"></script>
-    <script src="resources/scripts/prototypePost.js"></script>
-    <script src="files/自提點詳情/data.js"></script>
-    <script type="text/javascript">
-      $axure.utils.getTransparentGifPath = function() { return 'resources/images/transparent.gif'; };
-      $axure.utils.getOtherPath = function() { return 'resources/Other.html'; };
-      $axure.utils.getReloadPath = function() { return 'resources/reload.html'; };
-    </script>
-  </head>
-  <body>
-    <div id="base" class="">
+        <p>有句话说得好，如果EMACS是神的编辑器，那么vim就是编辑器之神了！vim和emacs极佳的扩展性，以及众多活跃的插件，是经常切换多语言编程的利器。那么，vimrc是vimer进阶不得不掌握的战场了！</p>
+<p>vimrc是vim的配置文件， 强大如编程语言一般！</p>
+<h2 id="autocmd"><a href="#autocmd" class="headerlink" title="autocmd"></a>autocmd</h2><p>autocmd是用于注册vim事件的处理方法，可以用于在特定事件（读，写，新建文本等）下触发特定的动作。<br>autocmd的定义</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">:au[tocmd] [group] &#123;event&#125; &#123;pat&#125; [nested] &#123;cmd&#125;</span><br></pre></td></tr></table></figure>
+<p>关键字au[tocmd]是少不了的，{group}是组名称，用于将当前所定义的注册命令归属于一个组，缺省的话默认是当前组，当前组可以用:augroup查看。event是指事件：</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br><span class="line">58</span><br><span class="line">59</span><br><span class="line">60</span><br><span class="line">61</span><br><span class="line">62</span><br><span class="line">63</span><br><span class="line">64</span><br><span class="line">65</span><br><span class="line">66</span><br><span class="line">67</span><br><span class="line">68</span><br><span class="line">69</span><br><span class="line">70</span><br><span class="line">71</span><br><span class="line">72</span><br><span class="line">73</span><br><span class="line">74</span><br><span class="line">75</span><br><span class="line">76</span><br><span class="line">77</span><br><span class="line">78</span><br><span class="line">79</span><br><span class="line">80</span><br><span class="line">81</span><br><span class="line">82</span><br><span class="line">83</span><br><span class="line">84</span><br><span class="line">85</span><br><span class="line">86</span><br><span class="line">87</span><br><span class="line">88</span><br><span class="line">89</span><br><span class="line">90</span><br><span class="line">91</span><br><span class="line">92</span><br><span class="line">93</span><br><span class="line">94</span><br><span class="line">95</span><br><span class="line">96</span><br><span class="line">97</span><br><span class="line">98</span><br><span class="line">99</span><br><span class="line">100</span><br><span class="line">101</span><br><span class="line">102</span><br><span class="line">103</span><br><span class="line">104</span><br><span class="line">105</span><br><span class="line">106</span><br><span class="line">107</span><br><span class="line">108</span><br><span class="line">109</span><br><span class="line">110</span><br><span class="line">111</span><br><span class="line">112</span><br><span class="line">113</span><br><span class="line">114</span><br><span class="line">115</span><br><span class="line">116</span><br><span class="line">117</span><br><span class="line">118</span><br><span class="line">119</span><br></pre></td><td class="code"><pre><span class="line">名字                    激活条件 </span><br><span class="line"></span><br><span class="line">        读入</span><br><span class="line">|BufNewFile|            开始编辑尚不存在的文件</span><br><span class="line">|BufReadPre|            开始编辑新缓冲区，读入文件前</span><br><span class="line">|BufRead|               开始编辑新缓冲区，读入文件后</span><br><span class="line">|BufReadPost|           开始编辑新缓冲区，读入文件后</span><br><span class="line">|BufReadCmd|            开始编辑新缓冲区前 |Cmd-event|</span><br><span class="line"></span><br><span class="line">|FileReadPre|           用 &quot;:read&quot; 命令读入文件前</span><br><span class="line">|FileReadPost|          用 &quot;:read&quot; 命令读入文件后</span><br><span class="line">|FileReadCmd|           用 &quot;:read&quot; 命令读入文件前 |Cmd-event|</span><br><span class="line"></span><br><span class="line">|FilterReadPre|         用过滤命令读入文件前</span><br><span class="line">|FilterReadPost|        用过滤命令读入文件后</span><br><span class="line"></span><br><span class="line">|StdinReadPre|          从标准输入读入缓冲区前</span><br><span class="line">|StdinReadPost|         从标准输入读入缓冲区后</span><br><span class="line"></span><br><span class="line">        写回</span><br><span class="line">|BufWrite|              开始把整个缓冲区写回到文件</span><br><span class="line">|BufWritePre|           开始把整个缓冲区写回到文件</span><br><span class="line">|BufWritePost|          把整个缓冲区写回到文件后</span><br><span class="line">|BufWriteCmd|           把整个缓冲区写回到文件前 |Cmd-event|</span><br><span class="line"></span><br><span class="line">|FileWritePre|          开始把缓冲区部分内容写回到文件</span><br><span class="line">|FileWritePost|         把缓冲区部分内容写回到文件后</span><br><span class="line">|FileWriteCmd|          把缓冲区部分内容写回到文件前 |Cmd-event|</span><br><span class="line"></span><br><span class="line">|FileAppendPre|         开始附加到文件</span><br><span class="line">|FileAppendPost|        附加到文件后</span><br><span class="line">|FileAppendCmd|         附加到文件前 |Cmd-event|</span><br><span class="line"></span><br><span class="line">|FilterWritePre|        开始为过滤命令或 diff 写到文件</span><br><span class="line">|FilterWritePost|       为过滤命令或 diff 写到文件后</span><br><span class="line"></span><br><span class="line">        缓冲区</span><br><span class="line">|BufAdd|                刚把缓冲区附加到缓冲区列表后</span><br><span class="line">|BufCreate|             刚把缓冲区附加到缓冲区列表后</span><br><span class="line">|BufDelete|             从缓冲区列表删除缓冲区前</span><br><span class="line">|BufWipeout|            从缓冲区列表完全删除缓冲区前</span><br><span class="line"></span><br><span class="line">|BufFilePre|            改变当前缓冲区名字前</span><br><span class="line">|BufFilePost|           改变当前缓冲区名字后</span><br><span class="line"></span><br><span class="line">|BufEnter|              进入缓冲区后</span><br><span class="line">|BufLeave|              转到其它缓冲区前</span><br><span class="line">|BufWinEnter|           在窗口显示缓冲区前</span><br><span class="line">|BufWinLeave|           从窗口删除缓冲区前</span><br><span class="line"></span><br><span class="line">|BufUnload|             卸载缓冲区前</span><br><span class="line">|BufHidden|             刚把缓冲区变为隐藏后</span><br><span class="line">|BufNew|                刚建立新缓冲区后</span><br><span class="line"></span><br><span class="line">|SwapExists|            检测到交换文件已经存在</span><br><span class="line"></span><br><span class="line">        选项</span><br><span class="line">|FileType|              设置 &#x27;filetype&#x27; 选项时</span><br><span class="line">|Syntax|                设置 &#x27;syntax&#x27; 选项时</span><br><span class="line">|EncodingChanged|       &#x27;encoding&#x27; 选项改变后</span><br><span class="line">|TermChanged|           &#x27;term&#x27; 的值改变后</span><br><span class="line"></span><br><span class="line">        启动和退出</span><br><span class="line">|VimEnter|              完成所有的初始化步骤后</span><br><span class="line">|GUIEnter|              成功启动 GUI 后</span><br><span class="line">|GUIFailed|             启动 GUI 失败之后</span><br><span class="line">|TermResponse|          收到 |t_RV| 的终端应答后</span><br><span class="line"></span><br><span class="line">|QuitPre|               用 `:quit` 时，决定是否退出之前</span><br><span class="line">|VimLeavePre|           退出 Vim 前，在写入 viminfo 文件之前</span><br><span class="line">|VimLeave|              退出 Vim 前，在写入 viminfo 文件之后</span><br><span class="line"></span><br><span class="line">        杂项</span><br><span class="line">|FileChangedShell|      Vim 注意到文件在编辑开始后被改变</span><br><span class="line">|FileChangedShellPost|  对在编辑开始后被改变的文件的处理完成后</span><br><span class="line">|FileChangedRO|         对只读文件进行第一次修改前</span><br><span class="line"></span><br><span class="line">|ShellCmdPost|          执行外壳命令后</span><br><span class="line">|ShellFilterPost|       用外壳命令执行完过滤后</span><br><span class="line"></span><br><span class="line">|FuncUndefined|         调用没有定义的用户函数</span><br><span class="line">|SpellFileMissing|      使用不存在的拼写文件</span><br><span class="line">|SourcePre|             执行 Vim 脚本之前</span><br><span class="line">|SourceCmd|             执行 Vim 脚本之前 |Cmd-event|</span><br><span class="line"></span><br><span class="line">|VimResized|            Vim 窗口大小改变后</span><br><span class="line">|FocusGained|           Vim 得到输入焦点</span><br><span class="line">|FocusLost|             Vim 失去输入焦点</span><br><span class="line">|CursorHold|            用户有一段时间没有按键</span><br><span class="line">|CursorHoldI|           在插入模式下，用户有一段时间没有按键</span><br><span class="line">|CursorMoved|           普通模式下移动了光标</span><br><span class="line">|CursorMovedI|          插入模式下移动了光标</span><br><span class="line"></span><br><span class="line">|WinEnter|              进入其它窗口后</span><br><span class="line">|WinLeave|              离开窗口前</span><br><span class="line">|TabEnter|              进入其它标签页后</span><br><span class="line">|TabLeave|              离开标签页前</span><br><span class="line">|CmdwinEnter|           进入命令行窗口后</span><br><span class="line">|CmdwinLeave|           离开命令行窗口前</span><br><span class="line"></span><br><span class="line">|InsertEnter|           开始插入模式前</span><br><span class="line">|InsertChange|          在插入或替换模式下输入 &lt;Insert&gt; 时</span><br><span class="line">|InsertLeave|           离开插入模式时</span><br><span class="line">|InsertCharPre|         插入模式输入每个字符前</span><br><span class="line"></span><br><span class="line">|ColorScheme|           载入色彩方案后</span><br><span class="line"></span><br><span class="line">|RemoteReply|           得到了 Vim 服务器的应答</span><br><span class="line"></span><br><span class="line">|QuickFixCmdPre|        执行 quickfix 命令前</span><br><span class="line">|QuickFixCmdPost|       执行 quickfix 命令后</span><br><span class="line"></span><br><span class="line">|SessionLoadPost|       载入会话文件后</span><br><span class="line"></span><br><span class="line">|MenuPopup|             刚要显示弹出菜单前</span><br><span class="line">|CompleteDone|          插入模式补全结束之后</span><br><span class="line"></span><br><span class="line">|User|                  和 &quot;:doautocmd&quot; 一起使用</span><br><span class="line"></span><br></pre></td></tr></table></figure>
 
-      <!-- Unnamed (顶部导航) -->
+<p>引用自<a target="_blank" rel="noopener" href="http://vimcdoc.sourceforge.net/doc/autocmd.html#autocmd-events">VIMCDOC</a>。</p>
+<p>模式匹配则是对当前文本类型的一种匹配，支持通配符，eg: *.php匹配php文本。<br>{nested}则是指明可以嵌套事件，当所处理的动作也被注册为事件触发另一动作时，默认不触发。</p>
+<p>{cmd}就是我们在vim命令模式下面经常使用的了，复杂的动作可以使用函数来处理。</p>
+<p>##Example<br>在我的vimrc脚本中，利用了autocmd在保存的时候对php文件进行语法检查。</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">au BufWrite *.php call phpSyntaxCheck()</span><br></pre></td></tr></table></figure>
+<p>这里的phpSyntaxCheck是自定义的vim函数，call phpSyntaxCheck()调用这个函数，函数里面调用外部的php -l 检查文件，匹配到错误则输出</p>
+<p>另外一个给我带来很大便利的是，新建文件的时候，加入一些定制的头部。</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line">au BufNewFile *.php call InsertPHPHeader()</span><br><span class="line"></span><br><span class="line">func InsertPHPHeader()</span><br><span class="line">	call append(0,&quot;&lt;?php&quot;)</span><br><span class="line">endf</span><br></pre></td></tr></table></figure>
 
-      <!-- 顶部导航 (动态面板) -->
-      <div id="u3171" class="ax_default" data-label="顶部导航">
-        <div id="u3171_state0" class="panel_state" data-label="白色背景" style="">
-          <div id="u3171_state0_content" class="panel_state_content">
-
-            <!-- 线条 (动态面板) -->
-            <div id="u3172" class="ax_default" data-label="线条">
-              <div id="u3172_state0" class="panel_state" data-label="State1" style="">
-                <div id="u3172_state0_content" class="panel_state_content">
-                </div>
-              </div>
-            </div>
-
-            <!-- logo (矩形) -->
-            <div id="u3173" class="ax_default _默认样式" data-label="logo">
-              <div id="u3173_div" class=""></div>
-              <!-- Unnamed () -->
-              <div id="u3174" class="text">
-                <p><span>4PX Logo</span></p>
-              </div>
-            </div>
-
-            <!-- 首页 (矩形) -->
-            <div id="u3175" class="ax_default _默认样式" data-label="首页" selectiongroup="u3170菜单1">
-              <div id="u3175_div" class=""></div>
-              <!-- Unnamed () -->
-              <div id="u3176" class="text">
-                <p><span>自提網點</span></p>
-              </div>
-            </div>
-
-            <!-- 产品与服务 (矩形) -->
-            <div id="u3177" class="ax_default _默认样式" data-label="产品与服务" selectiongroup="u3170菜单1">
-              <div id="u3177_div" class=""></div>
-              <!-- Unnamed () -->
-              <div id="u3178" class="text">
-                <p><span>產品與服務</span></p>
-              </div>
-            </div>
-
-            <!-- 常見問題 (矩形) -->
-            <div id="u3179" class="ax_default _默认样式" data-label="常見問題" selectiongroup="u3170菜单1">
-              <div id="u3179_div" class=""></div>
-              <!-- Unnamed () -->
-              <div id="u3180" class="text">
-                <p><span>常見問題</span></p>
-              </div>
-            </div>
-
-            <!-- 優惠活動 (矩形) -->
-            <div id="u3181" class="ax_default _默认样式" data-label="優惠活動" selectiongroup="u3170菜单1">
-              <div id="u3181_div" class=""></div>
-              <!-- Unnamed () -->
-              <div id="u3182" class="text">
-                <p><span>優惠活動</span></p>
-              </div>
-            </div>
-
-            <!-- 個人中心 (矩形) -->
-            <div id="u3183" class="ax_default _默认样式" data-label="個人中心" selectiongroup="u3170菜单1">
-              <div id="u3183_div" class=""></div>
-              <!-- Unnamed () -->
-              <div id="u3184" class="text">
-                <p><span style="font-family:'微软雅黑';font-weight:410;">個人中心&nbsp; &nbsp; </span><span style="font-family:'FontAwesome';font-weight:400;font-size:18px;"></span></p>
-              </div>
-            </div>
-
-            <!-- 产品与服务 (矩形) -->
-            <div id="u3185" class="ax_default _默认样式" data-label="产品与服务" selectiongroup="u3170菜单1">
-              <div id="u3185_div" class=""></div>
-              <!-- Unnamed () -->
-              <div id="u3186" class="text">
-                <p><span>首頁</span></p>
-              </div>
-            </div>
-
-            <!-- 個人中心 (矩形) -->
-            <div id="u3187" class="ax_default _默认样式" data-label="個人中心" selectiongroup="u3170菜单1">
-              <div id="u3187_div" class=""></div>
-              <!-- Unnamed () -->
-              <div id="u3188" class="text">
-                <p><span>企業客戶 &gt;&gt;</span></p>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <!-- Unnamed (侧边工具) -->
-
-      <!-- 侧边工具 (动态面板) -->
-      <div id="u3190" class="ax_default" data-label="侧边工具">
-        <div id="u3190_state0" class="panel_state" data-label="State1" style="">
-          <div id="u3190_state0_content" class="panel_state_content">
-
-            <!-- Unnamed (矩形) -->
-            <div id="u3191" class="ax_default _默认样式">
-              <div id="u3191_div" class=""></div>
-              <!-- Unnamed () -->
-              <div id="u3192" class="text">
-                <p><span style="font-family:'FontAwesome';font-size:28px;color:#CCCCCC;"></span></p><p><span style="font-family:'微软雅黑';font-size:12px;color:#999999;">在線咨詢</span></p>
-              </div>
-            </div>
-
-            <!-- Unnamed (矩形) -->
-            <div id="u3193" class="ax_default _默认样式">
-              <div id="u3193_div" class=""></div>
-              <!-- Unnamed () -->
-              <div id="u3194" class="text">
-                <p><span style="font-family:'FontAwesome';font-size:36px;"></span></p><p><span style="font-family:'FontAwesome';font-size:12px;">運費</span><span style="font-family:'微软雅黑';font-size:12px;">計算</span></p>
-              </div>
-            </div>
-
-            <!-- TOP (矩形) -->
-            <div id="u3195" class="ax_default _默认样式 ax_default_hidden" data-label="TOP" style="display:none; visibility: hidden">
-              <div id="u3195_div" class=""></div>
-              <!-- Unnamed () -->
-              <div id="u3196" class="text">
-                <p><span style="font-family:'FontAwesome';font-size:28px;color:#CCCCCC;"></span></p><p><span style="font-family:'微软雅黑';font-size:12px;color:#999999;">返回頂部</span></p>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <!-- 顶部热区 (热区) -->
-      <div id="u3197" class="ax_default" data-label="顶部热区">
-      </div>
-
-      <!-- Unnamed (精简底部) -->
-
-      <!-- 底部信息 (组合) -->
-      <div id="u3199" class="ax_default" data-label="底部信息" data-left="0" data-top="0" data-width="1300" data-height="60">
-
-        <!-- 背景 (动态面板) -->
-        <div id="u3200" class="ax_default" data-label="背景">
-          <div id="u3200_state0" class="panel_state" data-label="State1" style="">
-            <div id="u3200_state0_content" class="panel_state_content">
-            </div>
-          </div>
-        </div>
-
-        <!-- 版權說明 (矩形) -->
-        <div id="u3201" class="ax_default _默认样式" data-label="版權說明">
-          <div id="u3201_div" class=""></div>
-          <!-- Unnamed () -->
-          <div id="u3202" class="text">
-            <p><span>版權© 2004-2018 深圳市遞四方速遞有限公司 粤ICP備 12019163號-7 系統研發與維護：深圳市遞四方速遞有限公司</span></p>
-          </div>
-        </div>
-      </div>
-
-      <!-- Unnamed (矩形) -->
-      <div id="u3203" class="ax_default _默认样式">
-        <div id="u3203_div" class=""></div>
-        <!-- Unnamed () -->
-        <div id="u3204" class="text">
-          <p><span>首頁 &gt;&nbsp; 自提網點 &gt; 自提點詳情</span></p>
-        </div>
-      </div>
-
-      <!-- Unnamed (矩形) -->
-      <div id="u3205" class="ax_default _文本段落3">
-        <div id="u3205_div" class=""></div>
-        <!-- Unnamed () -->
-        <div id="u3206" class="text">
-          <p><span style="font-family:'Arial Negreta', 'Arial Normal', 'Arial';font-weight:700;font-size:18px;">四方格-屯門自提倉</span></p><p><span style="font-family:'Arial Normal', 'Arial';font-weight:400;font-size:16px;"><br></span></p><p><span style="font-family:'Arial Normal', 'Arial';font-weight:400;font-size:16px;">&nbsp; 地址：香港新界屯門震環路三號德榮工業大廈9樓D室</span></p><p><span style="font-family:'Arial Normal', 'Arial';font-weight:400;font-size:16px;"><br></span></p><p><span style="font-family:'Arial Normal', 'Arial';font-weight:400;font-size:16px;">&nbsp; 電話：00852-23637800</span></p><p><span style="font-family:'Arial Normal', 'Arial';font-weight:400;font-size:16px;"><br></span></p><p><span style="font-family:'Arial Normal', 'Arial';font-weight:400;font-size:16px;">&nbsp; 營業時間：週一至週六：10:30-19:30 (午膳14：00-15：00）&nbsp;&nbsp; </span></p><p><span style="font-family:'Arial Normal', 'Arial';font-weight:400;font-size:16px;"><br></span></p><p><span style="font-family:'Arial Normal', 'Arial';font-weight:400;font-size:16px;">&nbsp;&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; 周日、勞工及公眾假期：12:00-17:00</span></p><p><span style="font-family:'Arial Normal', 'Arial';font-weight:400;font-size:16px;"><br></span></p><p><span style="font-family:'Arial Normal', 'Arial';font-weight:400;font-size:16px;">乘車線路：</span></p><p><span style="font-family:'Arial Normal', 'Arial';font-weight:400;font-size:16px;"><br></span></p><p><span style="font-family:'Arial Normal', 'Arial';font-weight:400;font-size:16px;">&nbsp; 1.深圳灣過關：深西快件巴士B3M——&gt;屯門鐵路站總站下車——&gt;步行5分鐘（車資11港幣）</span></p><p><span style="font-family:'Arial Normal', 'Arial';font-weight:400;font-size:16px;">&nbsp; 2.落馬洲口岸過關：小巴44B——&gt;屯門鐵路站總站下車——&gt;步行5分鐘（車資13港幣）</span></p><p><span style="font-family:'Arial Normal', 'Arial';font-weight:400;font-size:16px;">&nbsp; 3.羅湖口岸過關：乘坐地鐵-東鐵線，羅湖站——&gt;上水火車站——&gt;轉乘小巴44A——&gt;屯門鐵路站總站下車——&gt;步行5分鐘（車資約33港幣）</span></p><p><span style="font-family:'Arial Normal', 'Arial';font-weight:400;font-size:16px;">&nbsp; 4.香港地區境內：地鐵——&gt;西鐵-屯門地鐵站A出口——&gt;步行5分鐘</span></p><p><span style="font-family:'Arial Normal', 'Arial';font-weight:400;font-size:16px;"><br></span></p><p><span style="font-family:'Arial Normal', 'Arial';font-weight:400;font-size:16px;">&nbsp; 注：</span></p><p><span style="font-family:'Arial Normal', 'Arial';font-weight:400;font-size:16px;">&nbsp; a: 四方格屯門自提倉位於屯門警署後面，屯門救護站的旁邊；</span></p><p><span style="font-family:'Arial Normal', 'Arial';font-weight:400;font-size:16px;">&nbsp; b: 所有的乘車點都在屯門鐵路站總站，步行5分鐘即到；屯門地鐵網站也是一個大的巴士站，有各個方向的回程車，包括香港本地和廣東周邊地區的車輛，交通極為便捷；</span></p><p><span style="font-family:'Arial Normal', 'Arial';font-weight:400;font-size:16px;"><br></span></p><p><span style="font-family:'Arial Normal', 'Arial';font-weight:400;font-size:16px;">&nbsp; c: 屯門購物指引：屯門地鐵站Vcity商場，屯門地鐵站斜對面，穿過馬路為屯門市中心。&nbsp; </span></p>
-        </div>
-      </div>
-
-      <!-- Unnamed (图片) -->
-      <div id="u3207" class="ax_default image1">
-        <img id="u3207_img" class="img " src="images/自提點詳情/u3207.png"/>
-        <!-- Unnamed () -->
-        <div id="u3208" class="text" style="display:none; visibility: hidden">
-          <p><span></span></p>
-        </div>
-      </div>
-    </div>
-  </body>
-</html>
+<p>这是一个简单的例子，定义了一个函数，插入php文件的头部一些字符串。</p>
 
       
     </div>
     <footer class="article-footer">
-      <a data-url="https://muyizixiu.github.io/2021/06/29/panya/%E8%87%AA%E6%8F%90%E9%BB%9E%E8%A9%B3%E6%83%85/" data-id="ckqhxvqh1001hphnc7iawaxrz" data-title="" class="article-share-link">Share</a>
+      <a data-url="https://muyizixiu.github.io/2016/10/10/vim-autocmd/" data-id="ckqhy2cas000xm0neciwt9xkv" data-title="vimrc之autocmd" class="article-share-link">Share</a>
       
       
       
@@ -1344,422 +575,45 @@
 
 
   
-    <article id="post-panya/基礎資料" class="h-entry article article-type-post" itemprop="blogPost" itemscope itemtype="https://schema.org/BlogPosting">
+    <article id="post-php-string-error" class="h-entry article article-type-post" itemprop="blogPost" itemscope itemtype="https://schema.org/BlogPosting">
   <div class="article-meta">
-    <a href="/2021/06/29/panya/%E5%9F%BA%E7%A4%8E%E8%B3%87%E6%96%99/" class="article-date">
-  <time class="dt-published" datetime="2021-06-29T11:00:50.970Z" itemprop="datePublished">2021-06-29</time>
+    <a href="/2016/08/26/php-string-error/" class="article-date">
+  <time class="dt-published" datetime="2016-08-26T00:00:00.000Z" itemprop="datePublished">2016-08-26</time>
 </a>
     
+  <div class="article-category">
+    <a class="article-category-link" href="/categories/%E6%8A%80%E6%9C%AF/">技术</a>
+  </div>
+
   </div>
   <div class="article-inner">
     
     
+      <header class="article-header">
+        
+  
+    <h1 itemprop="name">
+      <a class="p-name article-title" href="/2016/08/26/php-string-error/">PHP 字符异常</a>
+    </h1>
+  
+
+      </header>
+    
     <div class="e-content article-entry" itemprop="articleBody">
       
-        <!DOCTYPE html>
-<html>
-  <head>
-    <title>基礎資料</title>
-    <meta http-equiv="X-UA-Compatible" content="IE=edge"/>
-    <meta http-equiv="content-type" content="text/html; charset=utf-8"/>
-    <meta name="viewport" content="width=1200, user-scalable=no"/>
-    <meta name="format-detection" content="telephone=no"/>
-    <meta name="apple-mobile-web-app-capable" content="yes"/>
-    <link href="data/apple-touch-icon.png" rel="apple-touch-icon"/>
-    <link href="resources/css/jquery-ui-themes.css" type="text/css" rel="stylesheet"/>
-    <link href="resources/css/axure_rp_page.css" type="text/css" rel="stylesheet"/>
-    <link href="data/styles.css" type="text/css" rel="stylesheet"/>
-    <link href="files/基礎資料/styles.css" type="text/css" rel="stylesheet"/>
-    <link href="http://cdn.bootcss.com/font-awesome/4.7.0/css/font-awesome.css" type="text/css" rel="stylesheet"/>
-    <script src="resources/scripts/jquery-1.7.1.min.js"></script>
-    <script src="resources/scripts/jquery-ui-1.8.10.custom.min.js"></script>
-    <script src="resources/scripts/prototypePre.js"></script>
-    <script src="data/document.js"></script>
-    <script src="resources/scripts/prototypePost.js"></script>
-    <script src="files/基礎資料/data.js"></script>
-    <script type="text/javascript">
-      $axure.utils.getTransparentGifPath = function() { return 'resources/images/transparent.gif'; };
-      $axure.utils.getOtherPath = function() { return 'resources/Other.html'; };
-      $axure.utils.getReloadPath = function() { return 'resources/reload.html'; };
-    </script>
-  </head>
-  <body>
-    <div id="base" class="">
-
-      <!-- Unnamed (顶部导航) -->
-
-      <!-- 顶部导航 (动态面板) -->
-      <div id="u4277" class="ax_default" data-label="顶部导航">
-        <div id="u4277_state0" class="panel_state" data-label="白色背景" style="">
-          <div id="u4277_state0_content" class="panel_state_content">
-
-            <!-- 线条 (动态面板) -->
-            <div id="u4278" class="ax_default" data-label="线条">
-              <div id="u4278_state0" class="panel_state" data-label="State1" style="">
-                <div id="u4278_state0_content" class="panel_state_content">
-                </div>
-              </div>
-            </div>
-
-            <!-- logo (矩形) -->
-            <div id="u4279" class="ax_default _默认样式" data-label="logo">
-              <div id="u4279_div" class=""></div>
-              <!-- Unnamed () -->
-              <div id="u4280" class="text">
-                <p><span>4PX Logo</span></p>
-              </div>
-            </div>
-
-            <!-- 首页 (矩形) -->
-            <div id="u4281" class="ax_default _默认样式" data-label="首页" selectiongroup="u4276菜单1">
-              <div id="u4281_div" class=""></div>
-              <!-- Unnamed () -->
-              <div id="u4282" class="text">
-                <p><span>自提網點</span></p>
-              </div>
-            </div>
-
-            <!-- 产品与服务 (矩形) -->
-            <div id="u4283" class="ax_default _默认样式" data-label="产品与服务" selectiongroup="u4276菜单1">
-              <div id="u4283_div" class=""></div>
-              <!-- Unnamed () -->
-              <div id="u4284" class="text">
-                <p><span>產品與服務</span></p>
-              </div>
-            </div>
-
-            <!-- 常見問題 (矩形) -->
-            <div id="u4285" class="ax_default _默认样式" data-label="常見問題" selectiongroup="u4276菜单1">
-              <div id="u4285_div" class=""></div>
-              <!-- Unnamed () -->
-              <div id="u4286" class="text">
-                <p><span>常見問題</span></p>
-              </div>
-            </div>
-
-            <!-- 優惠活動 (矩形) -->
-            <div id="u4287" class="ax_default _默认样式" data-label="優惠活動" selectiongroup="u4276菜单1">
-              <div id="u4287_div" class=""></div>
-              <!-- Unnamed () -->
-              <div id="u4288" class="text">
-                <p><span>優惠活動</span></p>
-              </div>
-            </div>
-
-            <!-- 個人中心 (矩形) -->
-            <div id="u4289" class="ax_default _默认样式" data-label="個人中心" selectiongroup="u4276菜单1">
-              <div id="u4289_div" class=""></div>
-              <!-- Unnamed () -->
-              <div id="u4290" class="text">
-                <p><span style="font-family:'微软雅黑';font-weight:410;">個人中心&nbsp; &nbsp; </span><span style="font-family:'FontAwesome';font-weight:400;font-size:18px;"></span></p>
-              </div>
-            </div>
-
-            <!-- 产品与服务 (矩形) -->
-            <div id="u4291" class="ax_default _默认样式" data-label="产品与服务" selectiongroup="u4276菜单1">
-              <div id="u4291_div" class=""></div>
-              <!-- Unnamed () -->
-              <div id="u4292" class="text">
-                <p><span>首頁</span></p>
-              </div>
-            </div>
-
-            <!-- 個人中心 (矩形) -->
-            <div id="u4293" class="ax_default _默认样式" data-label="個人中心" selectiongroup="u4276菜单1">
-              <div id="u4293_div" class=""></div>
-              <!-- Unnamed () -->
-              <div id="u4294" class="text">
-                <p><span>企業客戶 &gt;&gt;</span></p>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <!-- Unnamed (侧边工具) -->
-
-      <!-- 侧边工具 (动态面板) -->
-      <div id="u4296" class="ax_default" data-label="侧边工具">
-        <div id="u4296_state0" class="panel_state" data-label="State1" style="">
-          <div id="u4296_state0_content" class="panel_state_content">
-
-            <!-- Unnamed (矩形) -->
-            <div id="u4297" class="ax_default _默认样式">
-              <div id="u4297_div" class=""></div>
-              <!-- Unnamed () -->
-              <div id="u4298" class="text">
-                <p><span style="font-family:'FontAwesome';font-size:28px;color:#CCCCCC;"></span></p><p><span style="font-family:'微软雅黑';font-size:12px;color:#999999;">在線咨詢</span></p>
-              </div>
-            </div>
-
-            <!-- Unnamed (矩形) -->
-            <div id="u4299" class="ax_default _默认样式">
-              <div id="u4299_div" class=""></div>
-              <!-- Unnamed () -->
-              <div id="u4300" class="text">
-                <p><span style="font-family:'FontAwesome';font-size:36px;"></span></p><p><span style="font-family:'FontAwesome';font-size:12px;">運費</span><span style="font-family:'微软雅黑';font-size:12px;">計算</span></p>
-              </div>
-            </div>
-
-            <!-- TOP (矩形) -->
-            <div id="u4301" class="ax_default _默认样式 ax_default_hidden" data-label="TOP" style="display:none; visibility: hidden">
-              <div id="u4301_div" class=""></div>
-              <!-- Unnamed () -->
-              <div id="u4302" class="text">
-                <p><span style="font-family:'FontAwesome';font-size:28px;color:#CCCCCC;"></span></p><p><span style="font-family:'微软雅黑';font-size:12px;color:#999999;">返回頂部</span></p>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <!-- 顶部热区 (热区) -->
-      <div id="u4303" class="ax_default" data-label="顶部热区">
-      </div>
-
-      <!-- Unnamed (精简底部) -->
-
-      <!-- 底部信息 (组合) -->
-      <div id="u4305" class="ax_default" data-label="底部信息" data-left="0" data-top="0" data-width="1300" data-height="60">
-
-        <!-- 背景 (动态面板) -->
-        <div id="u4306" class="ax_default" data-label="背景">
-          <div id="u4306_state0" class="panel_state" data-label="State1" style="">
-            <div id="u4306_state0_content" class="panel_state_content">
-            </div>
-          </div>
-        </div>
-
-        <!-- 版權說明 (矩形) -->
-        <div id="u4307" class="ax_default _默认样式" data-label="版權說明">
-          <div id="u4307_div" class=""></div>
-          <!-- Unnamed () -->
-          <div id="u4308" class="text">
-            <p><span>版權© 2004-2018 深圳市遞四方速遞有限公司 粤ICP備 12019163號-7 系統研發與維護：深圳市遞四方速遞有限公司</span></p>
-          </div>
-        </div>
-      </div>
-
-      <!-- Unnamed (矩形) -->
-      <div id="u4309" class="ax_default _默认样式">
-        <div id="u4309_div" class=""></div>
-        <!-- Unnamed () -->
-        <div id="u4310" class="text">
-          <p><span>首頁 &gt; 個人中心 &gt; 基礎資料</span></p>
-        </div>
-      </div>
-
-      <!-- Unnamed (矩形) -->
-      <div id="u4311" class="ax_default box_2">
-        <div id="u4311_div" class=""></div>
-        <!-- Unnamed () -->
-        <div id="u4312" class="text" style="display:none; visibility: hidden">
-          <p><span></span></p>
-        </div>
-      </div>
-
-      <!-- Unnamed (個人中心側欄) -->
-
-      <!-- Unnamed (矩形) -->
-      <div id="u4314" class="ax_default box_2">
-        <div id="u4314_div" class=""></div>
-        <!-- Unnamed () -->
-        <div id="u4315" class="text" style="display:none; visibility: hidden">
-          <p><span></span></p>
-        </div>
-      </div>
-
-      <!-- Unnamed (矩形) -->
-      <div id="u4316" class="ax_default box_3">
-        <div id="u4316_div" class=""></div>
-        <!-- Unnamed () -->
-        <div id="u4317" class="text">
-          <p><span>個人中心</span></p>
-        </div>
-      </div>
-
-      <!-- Unnamed (矩形) -->
-      <div id="u4318" class="ax_default box_2">
-        <div id="u4318_div" class=""></div>
-        <!-- Unnamed () -->
-        <div id="u4319" class="text">
-          <p><span style="font-family:'FontAwesome';font-weight:410;"></span><span style="font-family:'Arial Normal', 'Arial';font-weight:400;"> 我的收件</span></p>
-        </div>
-      </div>
-
-      <!-- Unnamed (矩形) -->
-      <div id="u4320" class="ax_default box_2">
-        <div id="u4320_div" class=""></div>
-        <!-- Unnamed () -->
-        <div id="u4321" class="text">
-          <p><span style="font-family:'FontAwesome';font-weight:410;"></span><span style="font-family:'Arial Normal', 'Arial';font-weight:400;"> 地址管理</span></p>
-        </div>
-      </div>
-
-      <!-- Unnamed (矩形) -->
-      <div id="u4322" class="ax_default box_2">
-        <div id="u4322_div" class=""></div>
-        <!-- Unnamed () -->
-        <div id="u4323" class="text">
-          <p><span style="font-family:'FontAwesome';font-weight:410;"></span><span style="font-family:'Arial Normal', 'Arial';font-weight:400;"> 我的資料</span></p>
-        </div>
-      </div>
-
-      <!-- Unnamed (矩形) -->
-      <div id="u4324" class="ax_default box_2">
-        <div id="u4324_div" class=""></div>
-        <!-- Unnamed () -->
-        <div id="u4325" class="text">
-          <p><span style="font-family:'FontAwesome';font-weight:410;"></span><span style="font-family:'Arial Normal', 'Arial';font-weight:400;"> 賬戶信息</span></p>
-        </div>
-      </div>
-
-      <!-- 我的寄件 (组合) -->
-      <div id="u4326" class="ax_default" data-label="我的寄件" data-left="0" data-top="76" data-width="200" data-height="50">
-
-        <!-- Unnamed (矩形) -->
-        <div id="u4327" class="ax_default box_2">
-          <div id="u4327_div" class=""></div>
-          <!-- Unnamed () -->
-          <div id="u4328" class="text">
-            <p><span style="font-family:'FontAwesome';"></span><span style="font-family:'Arial Normal', 'Arial';"> 我的寄件</span></p>
-          </div>
-        </div>
-
-        <!-- Unnamed (矩形) -->
-        <div id="u4329" class="ax_default box_3">
-          <div id="u4329_div" class=""></div>
-          <!-- Unnamed () -->
-          <div id="u4330" class="text">
-            <p><span>New</span></p>
-          </div>
-        </div>
-      </div>
-
-      <!-- 寄件包裹 (矩形) -->
-      <div id="u4331" class="ax_default box_2" data-label="寄件包裹" selectiongroup="u4313側欄選項組">
-        <div id="u4331_div" class=""></div>
-        <!-- Unnamed () -->
-        <div id="u4332" class="text">
-          <p><span>寄件包裹</span></p>
-        </div>
-      </div>
-
-      <!-- 新增寄件 (矩形) -->
-      <div id="u4333" class="ax_default box_2" data-label="新增寄件" selectiongroup="u4313側欄選項組">
-        <div id="u4333_div" class=""></div>
-        <!-- Unnamed () -->
-        <div id="u4334" class="text">
-          <p><span>新增寄件</span></p>
-        </div>
-      </div>
-
-      <!-- Unnamed (矩形) -->
-      <div id="u4335" class="ax_default box_2">
-        <div id="u4335_div" class=""></div>
-        <!-- Unnamed () -->
-        <div id="u4336" class="text">
-          <p><span style="font-family:'FontAwesome';font-weight:410;"></span><span style="font-family:'Arial Normal', 'Arial';font-weight:400;"> 異常包裹</span></p>
-        </div>
-      </div>
-
-      <!-- 收件包裹 (矩形) -->
-      <div id="u4337" class="ax_default box_2" data-label="收件包裹" selectiongroup="u4313側欄選項組">
-        <div id="u4337_div" class=""></div>
-        <!-- Unnamed () -->
-        <div id="u4338" class="text">
-          <p><span>收件包裹</span></p>
-        </div>
-      </div>
-
-      <!-- 新增收件 (矩形) -->
-      <div id="u4339" class="ax_default box_2" data-label="新增收件" selectiongroup="u4313側欄選項組">
-        <div id="u4339_div" class=""></div>
-        <!-- Unnamed () -->
-        <div id="u4340" class="text">
-          <p><span>新增收件</span></p>
-        </div>
-      </div>
-
-      <!-- 異常包裹 (矩形) -->
-      <div id="u4341" class="ax_default box_2" data-label="異常包裹" selectiongroup="u4313側欄選項組">
-        <div id="u4341_div" class=""></div>
-        <!-- Unnamed () -->
-        <div id="u4342" class="text">
-          <p><span>異常包裹</span></p>
-        </div>
-      </div>
-
-      <!-- 地址管理 (矩形) -->
-      <div id="u4343" class="ax_default box_2" data-label="地址管理" selectiongroup="u4313側欄選項組">
-        <div id="u4343_div" class=""></div>
-        <!-- Unnamed () -->
-        <div id="u4344" class="text">
-          <p><span>地址管理</span></p>
-        </div>
-      </div>
-
-      <!-- 餘額管理 (矩形) -->
-      <div id="u4345" class="ax_default box_2" data-label="餘額管理" selectiongroup="u4313側欄選項組">
-        <div id="u4345_div" class=""></div>
-        <!-- Unnamed () -->
-        <div id="u4346" class="text">
-          <p><span>餘額管理</span></p>
-        </div>
-      </div>
-
-      <!-- 我的優惠 (矩形) -->
-      <div id="u4347" class="ax_default box_2" data-label="我的優惠" selectiongroup="u4313側欄選項組">
-        <div id="u4347_div" class=""></div>
-        <!-- Unnamed () -->
-        <div id="u4348" class="text">
-          <p><span>我的優惠</span></p>
-        </div>
-      </div>
-
-      <!-- 基礎資料 (矩形) -->
-      <div id="u4349" class="ax_default box_2" data-label="基礎資料" selectiongroup="u4313側欄選項組">
-        <div id="u4349_div" class=""></div>
-        <!-- Unnamed () -->
-        <div id="u4350" class="text">
-          <p><span>基礎資料</span></p>
-        </div>
-      </div>
-
-      <!-- 帳號安全 (矩形) -->
-      <div id="u4351" class="ax_default box_2" data-label="帳號安全" selectiongroup="u4313側欄選項組">
-        <div id="u4351_div" class=""></div>
-        <!-- Unnamed () -->
-        <div id="u4352" class="text">
-          <p><span>帳號安全</span></p>
-        </div>
-      </div>
-
-      <!-- Unnamed (矩形) -->
-      <div id="u4353" class="ax_default box_2">
-        <div id="u4353_div" class=""></div>
-        <!-- Unnamed () -->
-        <div id="u4354" class="text">
-          <p><span style="font-family:'FontAwesome';font-weight:410;"></span><span style="font-family:'Arial Normal', 'Arial';font-weight:400;"> 轉運倉地址</span></p>
-        </div>
-      </div>
-
-      <!-- 地址管理 (矩形) -->
-      <div id="u4355" class="ax_default box_2" data-label="地址管理" selectiongroup="u4313側欄選項組">
-        <div id="u4355_div" class=""></div>
-        <!-- Unnamed () -->
-        <div id="u4356" class="text">
-          <p><span>轉運倉地址</span></p>
-        </div>
-      </div>
-    </div>
-  </body>
-</html>
+        <p>php作为一门弱类型语言！字符串的处理显得要比强类型语言要灵活且复杂很多！隐藏的类型转换，较多的字符串处理函数，中文字符的处理，转义等等无疑是有很多坑的！</p>
+<p>字符串乱码的问题其实比较好解决，无非就是做到正确的编码，但是utf-8编码却有个小插曲！为了让程序更好地区分unicode编码采用的实现方式，头部带了几个不可见字符（也就是BOM），目前普遍采用utf-8的编码格式的情形下，带BOM的php脚本在被require活着include之后就会出现问题，在 </p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">&lt;?php</span><br></pre></td></tr></table></figure>
+<p>之前的文本会被当做文本流输出到标准输出中！然而0xEF,0xBB,0xBF这三个字符是不可见的，导致正常的输出变成了类似于乱码的格式！由于windows普遍鸟BOM，而unix普通不鸟BOM，同一份代码可能表现上不同，有BOM的在输出上会出现字符异常！实际上编码也是正常的，把不可见字符删除就行了！</p>
+<p>同理而言，在</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">&lt;?php</span><br></pre></td></tr></table></figure>
+<p> 之前的不可见字符都有可能导致字符异常，因为php大多数情形下是以输出作为返回值的，所以不可见字符可能导致很多类似于，头几个字母乱码，非正常json等现象！</p>
+<p>另外值得一提的是，json_encode 会对中文字符进行unicode转义，以及在类型比较的时候会发生隐藏的类型转换！这两者在开发过程中都是比较常见的，在暗流涌动的php代码上，我们要在自以为上面多一层验证，php的测试是很必要的；</p>
 
       
     </div>
     <footer class="article-footer">
-      <a data-url="https://muyizixiu.github.io/2021/06/29/panya/%E5%9F%BA%E7%A4%8E%E8%B3%87%E6%96%99/" data-id="ckqhxvqi30026phncf2xm3nqo" data-title="" class="article-share-link">Share</a>
+      <a data-url="https://muyizixiu.github.io/2016/08/26/php-string-error/" data-id="ckqhy2cap000sm0ne0acz2m3r" data-title="PHP 字符异常" class="article-share-link">Share</a>
       
       
       
@@ -1771,674 +625,48 @@
 
 
   
-    <article id="post-panya/寄件" class="h-entry article article-type-post" itemprop="blogPost" itemscope itemtype="https://schema.org/BlogPosting">
+    <article id="post-encoding" class="h-entry article article-type-post" itemprop="blogPost" itemscope itemtype="https://schema.org/BlogPosting">
   <div class="article-meta">
-    <a href="/2021/06/29/panya/%E5%AF%84%E4%BB%B6/" class="article-date">
-  <time class="dt-published" datetime="2021-06-29T11:00:50.970Z" itemprop="datePublished">2021-06-29</time>
+    <a href="/2016/06/20/encoding/" class="article-date">
+  <time class="dt-published" datetime="2016-06-20T00:00:00.000Z" itemprop="datePublished">2016-06-20</time>
 </a>
     
+  <div class="article-category">
+    <a class="article-category-link" href="/categories/%E6%8A%80%E6%9C%AF/">技术</a>
+  </div>
+
   </div>
   <div class="article-inner">
     
     
+      <header class="article-header">
+        
+  
+    <h1 itemprop="name">
+      <a class="p-name article-title" href="/2016/06/20/encoding/">unicode utf-8 and encoding</a>
+    </h1>
+  
+
+      </header>
+    
     <div class="e-content article-entry" itemprop="articleBody">
       
-        <!DOCTYPE html>
-<html>
-  <head>
-    <title>寄件</title>
-    <meta http-equiv="X-UA-Compatible" content="IE=edge"/>
-    <meta http-equiv="content-type" content="text/html; charset=utf-8"/>
-    <meta name="viewport" content="width=1200, user-scalable=no"/>
-    <meta name="format-detection" content="telephone=no"/>
-    <meta name="apple-mobile-web-app-capable" content="yes"/>
-    <link href="data/apple-touch-icon.png" rel="apple-touch-icon"/>
-    <link href="resources/css/jquery-ui-themes.css" type="text/css" rel="stylesheet"/>
-    <link href="resources/css/axure_rp_page.css" type="text/css" rel="stylesheet"/>
-    <link href="data/styles.css" type="text/css" rel="stylesheet"/>
-    <link href="files/寄件/styles.css" type="text/css" rel="stylesheet"/>
-    <link href="http://cdn.bootcss.com/font-awesome/4.7.0/css/font-awesome.css" type="text/css" rel="stylesheet"/>
-    <script src="resources/scripts/jquery-1.7.1.min.js"></script>
-    <script src="resources/scripts/jquery-ui-1.8.10.custom.min.js"></script>
-    <script src="resources/scripts/prototypePre.js"></script>
-    <script src="data/document.js"></script>
-    <script src="resources/scripts/prototypePost.js"></script>
-    <script src="files/寄件/data.js"></script>
-    <script type="text/javascript">
-      $axure.utils.getTransparentGifPath = function() { return 'resources/images/transparent.gif'; };
-      $axure.utils.getOtherPath = function() { return 'resources/Other.html'; };
-      $axure.utils.getReloadPath = function() { return 'resources/reload.html'; };
-    </script>
-  </head>
-  <body>
-    <div id="base" class="">
-
-      <!-- Unnamed (顶部导航) -->
-
-      <!-- 顶部导航 (动态面板) -->
-      <div id="u854" class="ax_default" data-label="顶部导航">
-        <div id="u854_state0" class="panel_state" data-label="白色背景" style="">
-          <div id="u854_state0_content" class="panel_state_content">
-
-            <!-- 线条 (动态面板) -->
-            <div id="u855" class="ax_default" data-label="线条">
-              <div id="u855_state0" class="panel_state" data-label="State1" style="">
-                <div id="u855_state0_content" class="panel_state_content">
-                </div>
-              </div>
-            </div>
-
-            <!-- logo (矩形) -->
-            <div id="u856" class="ax_default _默认样式" data-label="logo">
-              <div id="u856_div" class=""></div>
-              <!-- Unnamed () -->
-              <div id="u857" class="text">
-                <p><span>4PX Logo</span></p>
-              </div>
-            </div>
-
-            <!-- 首页 (矩形) -->
-            <div id="u858" class="ax_default _默认样式" data-label="首页" selectiongroup="u853菜单1">
-              <div id="u858_div" class=""></div>
-              <!-- Unnamed () -->
-              <div id="u859" class="text">
-                <p><span>自提網點</span></p>
-              </div>
-            </div>
-
-            <!-- 产品与服务 (矩形) -->
-            <div id="u860" class="ax_default _默认样式" data-label="产品与服务" selectiongroup="u853菜单1">
-              <div id="u860_div" class=""></div>
-              <!-- Unnamed () -->
-              <div id="u861" class="text">
-                <p><span>產品與服務</span></p>
-              </div>
-            </div>
-
-            <!-- 常見問題 (矩形) -->
-            <div id="u862" class="ax_default _默认样式" data-label="常見問題" selectiongroup="u853菜单1">
-              <div id="u862_div" class=""></div>
-              <!-- Unnamed () -->
-              <div id="u863" class="text">
-                <p><span>常見問題</span></p>
-              </div>
-            </div>
-
-            <!-- 優惠活動 (矩形) -->
-            <div id="u864" class="ax_default _默认样式" data-label="優惠活動" selectiongroup="u853菜单1">
-              <div id="u864_div" class=""></div>
-              <!-- Unnamed () -->
-              <div id="u865" class="text">
-                <p><span>優惠活動</span></p>
-              </div>
-            </div>
-
-            <!-- 個人中心 (矩形) -->
-            <div id="u866" class="ax_default _默认样式" data-label="個人中心" selectiongroup="u853菜单1">
-              <div id="u866_div" class=""></div>
-              <!-- Unnamed () -->
-              <div id="u867" class="text">
-                <p><span style="font-family:'微软雅黑';font-weight:410;">個人中心&nbsp; &nbsp; </span><span style="font-family:'FontAwesome';font-weight:400;font-size:18px;"></span></p>
-              </div>
-            </div>
-
-            <!-- 产品与服务 (矩形) -->
-            <div id="u868" class="ax_default _默认样式" data-label="产品与服务" selectiongroup="u853菜单1">
-              <div id="u868_div" class=""></div>
-              <!-- Unnamed () -->
-              <div id="u869" class="text">
-                <p><span>首頁</span></p>
-              </div>
-            </div>
-
-            <!-- 個人中心 (矩形) -->
-            <div id="u870" class="ax_default _默认样式" data-label="個人中心" selectiongroup="u853菜单1">
-              <div id="u870_div" class=""></div>
-              <!-- Unnamed () -->
-              <div id="u871" class="text">
-                <p><span>企業客戶 &gt;&gt;</span></p>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <!-- Unnamed (侧边工具) -->
-
-      <!-- 侧边工具 (动态面板) -->
-      <div id="u873" class="ax_default" data-label="侧边工具">
-        <div id="u873_state0" class="panel_state" data-label="State1" style="">
-          <div id="u873_state0_content" class="panel_state_content">
-
-            <!-- Unnamed (矩形) -->
-            <div id="u874" class="ax_default _默认样式">
-              <div id="u874_div" class=""></div>
-              <!-- Unnamed () -->
-              <div id="u875" class="text">
-                <p><span style="font-family:'FontAwesome';font-size:28px;color:#CCCCCC;"></span></p><p><span style="font-family:'微软雅黑';font-size:12px;color:#999999;">在線咨詢</span></p>
-              </div>
-            </div>
-
-            <!-- Unnamed (矩形) -->
-            <div id="u876" class="ax_default _默认样式">
-              <div id="u876_div" class=""></div>
-              <!-- Unnamed () -->
-              <div id="u877" class="text">
-                <p><span style="font-family:'FontAwesome';font-size:36px;"></span></p><p><span style="font-family:'FontAwesome';font-size:12px;">運費</span><span style="font-family:'微软雅黑';font-size:12px;">計算</span></p>
-              </div>
-            </div>
-
-            <!-- TOP (矩形) -->
-            <div id="u878" class="ax_default _默认样式 ax_default_hidden" data-label="TOP" style="display:none; visibility: hidden">
-              <div id="u878_div" class=""></div>
-              <!-- Unnamed () -->
-              <div id="u879" class="text">
-                <p><span style="font-family:'FontAwesome';font-size:28px;color:#CCCCCC;"></span></p><p><span style="font-family:'微软雅黑';font-size:12px;color:#999999;">返回頂部</span></p>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <!-- 顶部热区 (热区) -->
-      <div id="u880" class="ax_default" data-label="顶部热区">
-      </div>
-
-      <!-- Unnamed (精简底部) -->
-
-      <!-- 底部信息 (组合) -->
-      <div id="u882" class="ax_default" data-label="底部信息" data-left="0" data-top="0" data-width="1300" data-height="60">
-
-        <!-- 背景 (动态面板) -->
-        <div id="u883" class="ax_default" data-label="背景">
-          <div id="u883_state0" class="panel_state" data-label="State1" style="">
-            <div id="u883_state0_content" class="panel_state_content">
-            </div>
-          </div>
-        </div>
-
-        <!-- 版權說明 (矩形) -->
-        <div id="u884" class="ax_default _默认样式" data-label="版權說明">
-          <div id="u884_div" class=""></div>
-          <!-- Unnamed () -->
-          <div id="u885" class="text">
-            <p><span>版權© 2004-2018 深圳市遞四方速遞有限公司 粤ICP備 12019163號-7 系統研發與維護：深圳市遞四方速遞有限公司</span></p>
-          </div>
-        </div>
-      </div>
-
-      <!-- Unnamed (矩形) -->
-      <div id="u886" class="ax_default _默认样式">
-        <div id="u886_div" class=""></div>
-        <!-- Unnamed () -->
-        <div id="u887" class="text">
-          <p><span>首頁 &gt; 個人中心 &gt; 寄件包裹</span></p>
-        </div>
-      </div>
-
-      <!-- Unnamed (個人中心側欄) -->
-
-      <!-- Unnamed (矩形) -->
-      <div id="u889" class="ax_default box_2">
-        <div id="u889_div" class=""></div>
-        <!-- Unnamed () -->
-        <div id="u890" class="text" style="display:none; visibility: hidden">
-          <p><span></span></p>
-        </div>
-      </div>
-
-      <!-- Unnamed (矩形) -->
-      <div id="u891" class="ax_default box_3">
-        <div id="u891_div" class=""></div>
-        <!-- Unnamed () -->
-        <div id="u892" class="text">
-          <p><span>個人中心</span></p>
-        </div>
-      </div>
-
-      <!-- Unnamed (矩形) -->
-      <div id="u893" class="ax_default box_2">
-        <div id="u893_div" class=""></div>
-        <!-- Unnamed () -->
-        <div id="u894" class="text">
-          <p><span style="font-family:'FontAwesome';font-weight:410;"></span><span style="font-family:'Arial Normal', 'Arial';font-weight:400;"> 我的收件</span></p>
-        </div>
-      </div>
-
-      <!-- Unnamed (矩形) -->
-      <div id="u895" class="ax_default box_2">
-        <div id="u895_div" class=""></div>
-        <!-- Unnamed () -->
-        <div id="u896" class="text">
-          <p><span style="font-family:'FontAwesome';font-weight:410;"></span><span style="font-family:'Arial Normal', 'Arial';font-weight:400;"> 地址管理</span></p>
-        </div>
-      </div>
-
-      <!-- Unnamed (矩形) -->
-      <div id="u897" class="ax_default box_2">
-        <div id="u897_div" class=""></div>
-        <!-- Unnamed () -->
-        <div id="u898" class="text">
-          <p><span style="font-family:'FontAwesome';font-weight:410;"></span><span style="font-family:'Arial Normal', 'Arial';font-weight:400;"> 我的資料</span></p>
-        </div>
-      </div>
-
-      <!-- Unnamed (矩形) -->
-      <div id="u899" class="ax_default box_2">
-        <div id="u899_div" class=""></div>
-        <!-- Unnamed () -->
-        <div id="u900" class="text">
-          <p><span style="font-family:'FontAwesome';font-weight:410;"></span><span style="font-family:'Arial Normal', 'Arial';font-weight:400;"> 賬戶信息</span></p>
-        </div>
-      </div>
-
-      <!-- 我的寄件 (组合) -->
-      <div id="u901" class="ax_default" data-label="我的寄件" data-left="0" data-top="76" data-width="200" data-height="50">
-
-        <!-- Unnamed (矩形) -->
-        <div id="u902" class="ax_default box_2">
-          <div id="u902_div" class=""></div>
-          <!-- Unnamed () -->
-          <div id="u903" class="text">
-            <p><span style="font-family:'FontAwesome';"></span><span style="font-family:'Arial Normal', 'Arial';"> 我的寄件</span></p>
-          </div>
-        </div>
-
-        <!-- Unnamed (矩形) -->
-        <div id="u904" class="ax_default box_3">
-          <div id="u904_div" class=""></div>
-          <!-- Unnamed () -->
-          <div id="u905" class="text">
-            <p><span>New</span></p>
-          </div>
-        </div>
-      </div>
-
-      <!-- 寄件包裹 (矩形) -->
-      <div id="u906" class="ax_default box_2" data-label="寄件包裹" selectiongroup="u888側欄選項組">
-        <div id="u906_div" class=""></div>
-        <!-- Unnamed () -->
-        <div id="u907" class="text">
-          <p><span>寄件包裹</span></p>
-        </div>
-      </div>
-
-      <!-- 新增寄件 (矩形) -->
-      <div id="u908" class="ax_default box_2" data-label="新增寄件" selectiongroup="u888側欄選項組">
-        <div id="u908_div" class=""></div>
-        <!-- Unnamed () -->
-        <div id="u909" class="text">
-          <p><span>新增寄件</span></p>
-        </div>
-      </div>
-
-      <!-- Unnamed (矩形) -->
-      <div id="u910" class="ax_default box_2">
-        <div id="u910_div" class=""></div>
-        <!-- Unnamed () -->
-        <div id="u911" class="text">
-          <p><span style="font-family:'FontAwesome';font-weight:410;"></span><span style="font-family:'Arial Normal', 'Arial';font-weight:400;"> 異常包裹</span></p>
-        </div>
-      </div>
-
-      <!-- 收件包裹 (矩形) -->
-      <div id="u912" class="ax_default box_2" data-label="收件包裹" selectiongroup="u888側欄選項組">
-        <div id="u912_div" class=""></div>
-        <!-- Unnamed () -->
-        <div id="u913" class="text">
-          <p><span>收件包裹</span></p>
-        </div>
-      </div>
-
-      <!-- 新增收件 (矩形) -->
-      <div id="u914" class="ax_default box_2" data-label="新增收件" selectiongroup="u888側欄選項組">
-        <div id="u914_div" class=""></div>
-        <!-- Unnamed () -->
-        <div id="u915" class="text">
-          <p><span>新增收件</span></p>
-        </div>
-      </div>
-
-      <!-- 異常包裹 (矩形) -->
-      <div id="u916" class="ax_default box_2" data-label="異常包裹" selectiongroup="u888側欄選項組">
-        <div id="u916_div" class=""></div>
-        <!-- Unnamed () -->
-        <div id="u917" class="text">
-          <p><span>異常包裹</span></p>
-        </div>
-      </div>
-
-      <!-- 地址管理 (矩形) -->
-      <div id="u918" class="ax_default box_2" data-label="地址管理" selectiongroup="u888側欄選項組">
-        <div id="u918_div" class=""></div>
-        <!-- Unnamed () -->
-        <div id="u919" class="text">
-          <p><span>地址管理</span></p>
-        </div>
-      </div>
-
-      <!-- 餘額管理 (矩形) -->
-      <div id="u920" class="ax_default box_2" data-label="餘額管理" selectiongroup="u888側欄選項組">
-        <div id="u920_div" class=""></div>
-        <!-- Unnamed () -->
-        <div id="u921" class="text">
-          <p><span>餘額管理</span></p>
-        </div>
-      </div>
-
-      <!-- 我的優惠 (矩形) -->
-      <div id="u922" class="ax_default box_2" data-label="我的優惠" selectiongroup="u888側欄選項組">
-        <div id="u922_div" class=""></div>
-        <!-- Unnamed () -->
-        <div id="u923" class="text">
-          <p><span>我的優惠</span></p>
-        </div>
-      </div>
-
-      <!-- 基礎資料 (矩形) -->
-      <div id="u924" class="ax_default box_2" data-label="基礎資料" selectiongroup="u888側欄選項組">
-        <div id="u924_div" class=""></div>
-        <!-- Unnamed () -->
-        <div id="u925" class="text">
-          <p><span>基礎資料</span></p>
-        </div>
-      </div>
-
-      <!-- 帳號安全 (矩形) -->
-      <div id="u926" class="ax_default box_2" data-label="帳號安全" selectiongroup="u888側欄選項組">
-        <div id="u926_div" class=""></div>
-        <!-- Unnamed () -->
-        <div id="u927" class="text">
-          <p><span>帳號安全</span></p>
-        </div>
-      </div>
-
-      <!-- Unnamed (矩形) -->
-      <div id="u928" class="ax_default box_2">
-        <div id="u928_div" class=""></div>
-        <!-- Unnamed () -->
-        <div id="u929" class="text">
-          <p><span style="font-family:'FontAwesome';font-weight:410;"></span><span style="font-family:'Arial Normal', 'Arial';font-weight:400;"> 轉運倉地址</span></p>
-        </div>
-      </div>
-
-      <!-- 地址管理 (矩形) -->
-      <div id="u930" class="ax_default box_2" data-label="地址管理" selectiongroup="u888側欄選項組">
-        <div id="u930_div" class=""></div>
-        <!-- Unnamed () -->
-        <div id="u931" class="text">
-          <p><span>轉運倉地址</span></p>
-        </div>
-      </div>
-
-      <!-- Unnamed (矩形) -->
-      <div id="u932" class="ax_default box_2">
-        <div id="u932_div" class=""></div>
-        <!-- Unnamed () -->
-        <div id="u933" class="text" style="display:none; visibility: hidden">
-          <p><span></span></p>
-        </div>
-      </div>
-
-      <!-- Unnamed (矩形) -->
-      <div id="u934" class="ax_default box_2 selected" selectiongroup="寄件包裹組">
-        <div id="u934_div" class="selected"></div>
-        <!-- Unnamed () -->
-        <div id="u935" class="text">
-          <p><span>待攬收</span></p>
-        </div>
-      </div>
-
-      <!-- Unnamed (矩形) -->
-      <div id="u936" class="ax_default box_2" selectiongroup="寄件包裹組">
-        <div id="u936_div" class=""></div>
-        <!-- Unnamed () -->
-        <div id="u937" class="text">
-          <p><span>運輸中</span></p>
-        </div>
-      </div>
-
-      <!-- Unnamed (矩形) -->
-      <div id="u938" class="ax_default box_2" selectiongroup="寄件包裹組">
-        <div id="u938_div" class=""></div>
-        <!-- Unnamed () -->
-        <div id="u939" class="text">
-          <p><span>已簽收</span></p>
-        </div>
-      </div>
-
-      <!-- Unnamed (矩形) -->
-      <div id="u940" class="ax_default box_2" selectiongroup="寄件包裹組">
-        <div id="u940_div" class=""></div>
-        <!-- Unnamed () -->
-        <div id="u941" class="text">
-          <p><span>已取消</span></p>
-        </div>
-      </div>
-
-      <!-- Unnamed (矩形) -->
-      <div id="u942" class="ax_default box_2">
-        <div id="u942_div" class=""></div>
-        <!-- Unnamed () -->
-        <div id="u943" class="text">
-          <p><span>新增寄件</span></p>
-        </div>
-      </div>
-
-      <!-- Unnamed (矩形) -->
-      <div id="u944" class="ax_default box_2">
-        <div id="u944_div" class=""></div>
-        <!-- Unnamed () -->
-        <div id="u945" class="text">
-          <p><span>4PX運單號</span></p>
-        </div>
-      </div>
-
-      <!-- Unnamed (矩形) -->
-      <div id="u946" class="ax_default box_2">
-        <div id="u946_div" class=""></div>
-        <!-- Unnamed () -->
-        <div id="u947" class="text">
-          <p><span>寄件人</span></p>
-        </div>
-      </div>
-
-      <!-- Unnamed (矩形) -->
-      <div id="u948" class="ax_default box_2">
-        <div id="u948_div" class=""></div>
-        <!-- Unnamed () -->
-        <div id="u949" class="text">
-          <p><span>寄送物品</span></p>
-        </div>
-      </div>
-
-      <!-- Unnamed (矩形) -->
-      <div id="u950" class="ax_default box_2">
-        <div id="u950_div" class=""></div>
-        <!-- Unnamed () -->
-        <div id="u951" class="text">
-          <p><span>收件人</span></p>
-        </div>
-      </div>
-
-      <!-- Unnamed (矩形) -->
-      <div id="u952" class="ax_default box_2">
-        <div id="u952_div" class=""></div>
-        <!-- Unnamed () -->
-        <div id="u953" class="text">
-          <p><span>操作</span></p>
-        </div>
-      </div>
-
-      <!-- Unnamed (矩形) -->
-      <div id="u954" class="ax_default box_2">
-        <div id="u954_div" class=""></div>
-        <!-- Unnamed () -->
-        <div id="u955" class="text">
-          <p><span style="font-family:'FontAwesome';font-weight:410;">&nbsp; </span><span style="font-family:'Arial Normal', 'Arial';font-weight:400;">輸入運單號搜索</span></p>
-        </div>
-      </div>
-
-      <!-- Unnamed (矩形) -->
-      <div id="u956" class="ax_default box_2">
-        <div id="u956_div" class=""></div>
-        <!-- Unnamed () -->
-        <div id="u957" class="text">
-          <p><span>搜索</span></p>
-        </div>
-      </div>
-
-      <!-- Unnamed (矩形) -->
-      <div id="u958" class="ax_default box_2">
-        <div id="u958_div" class=""></div>
-        <!-- Unnamed () -->
-        <div id="u959" class="text" style="display:none; visibility: hidden">
-          <p><span></span></p>
-        </div>
-      </div>
-
-      <!-- Unnamed (矩形) -->
-      <div id="u960" class="ax_default box_2">
-        <div id="u960_div" class=""></div>
-        <!-- Unnamed () -->
-        <div id="u961" class="text">
-          <p><span>狀態</span></p>
-        </div>
-      </div>
-
-      <!-- Unnamed (矩形) -->
-      <div id="u962" class="ax_default box_2">
-        <div id="u962_div" class=""></div>
-        <!-- Unnamed () -->
-        <div id="u963" class="text" style="display:none; visibility: hidden">
-          <p><span></span></p>
-        </div>
-      </div>
-
-      <!-- Unnamed (矩形) -->
-      <div id="u964" class="ax_default box_2">
-        <div id="u964_div" class=""></div>
-        <!-- Unnamed () -->
-        <div id="u965" class="text" style="display:none; visibility: hidden">
-          <p><span></span></p>
-        </div>
-      </div>
-
-      <!-- Unnamed (矩形) -->
-      <div id="u966" class="ax_default box_2">
-        <div id="u966_div" class=""></div>
-        <!-- Unnamed () -->
-        <div id="u967" class="text">
-          <p><span>64745845842</span></p>
-        </div>
-      </div>
-
-      <!-- Unnamed (矩形) -->
-      <div id="u968" class="ax_default box_2">
-        <div id="u968_div" class=""></div>
-        <!-- Unnamed () -->
-        <div id="u969" class="text">
-          <p><span>Mr Wang</span></p><p><span>65****81</span></p>
-        </div>
-      </div>
-
-      <!-- Unnamed (矩形) -->
-      <div id="u970" class="ax_default box_2">
-        <div id="u970_div" class=""></div>
-        <!-- Unnamed () -->
-        <div id="u971" class="text">
-          <p><span>數碼產品 x 1</span></p>
-        </div>
-      </div>
-
-      <!-- Unnamed (矩形) -->
-      <div id="u972" class="ax_default box_2">
-        <div id="u972_div" class=""></div>
-        <!-- Unnamed () -->
-        <div id="u973" class="text">
-          <p><span>Mrs Li</span></p><p><span>75****37</span></p>
-        </div>
-      </div>
-
-      <!-- Unnamed (矩形) -->
-      <div id="u974" class="ax_default box_2">
-        <div id="u974_div" class=""></div>
-        <!-- Unnamed () -->
-        <div id="u975" class="text">
-          <p><span>待攬收</span></p>
-        </div>
-      </div>
-
-      <!-- Unnamed (矩形) -->
-      <div id="u976" class="ax_default box_2">
-        <div id="u976_div" class=""></div>
-        <!-- Unnamed () -->
-        <div id="u977" class="text">
-          <p><a id="u978" class="link"><span>詳情</span></a><span>&nbsp; 軌跡查詢</span></p>
-        </div>
-      </div>
-
-      <!-- Unnamed (矩形) -->
-      <div id="u979" class="ax_default box_2">
-        <div id="u979_div" class=""></div>
-        <!-- Unnamed () -->
-        <div id="u980" class="text">
-          <p><span>43621384124</span></p>
-        </div>
-      </div>
-
-      <!-- Unnamed (矩形) -->
-      <div id="u981" class="ax_default box_2">
-        <div id="u981_div" class=""></div>
-        <!-- Unnamed () -->
-        <div id="u982" class="text">
-          <p><span>Mr Wang</span></p><p><span>65****81</span></p>
-        </div>
-      </div>
-
-      <!-- Unnamed (矩形) -->
-      <div id="u983" class="ax_default box_2">
-        <div id="u983_div" class=""></div>
-        <!-- Unnamed () -->
-        <div id="u984" class="text">
-          <p><span>服飾 x 1</span></p><p><span>日用品 x 1</span></p>
-        </div>
-      </div>
-
-      <!-- Unnamed (矩形) -->
-      <div id="u985" class="ax_default box_2">
-        <div id="u985_div" class=""></div>
-        <!-- Unnamed () -->
-        <div id="u986" class="text">
-          <p><span>Mr Zhang</span></p><p><span>94****35</span></p>
-        </div>
-      </div>
-
-      <!-- Unnamed (矩形) -->
-      <div id="u987" class="ax_default box_2">
-        <div id="u987_div" class=""></div>
-        <!-- Unnamed () -->
-        <div id="u988" class="text">
-          <p><span>待攬收</span></p>
-        </div>
-      </div>
-
-      <!-- Unnamed (矩形) -->
-      <div id="u989" class="ax_default box_2">
-        <div id="u989_div" class=""></div>
-        <!-- Unnamed () -->
-        <div id="u990" class="text">
-          <p><a id="u991" class="link"><span>詳情</span></a><span>&nbsp; 軌跡查詢</span></p>
-        </div>
-      </div>
-    </div>
-  </body>
-</html>
+        <p>编码总是个问题，尤其是在数据历经不同平台，甚至是不同程序下！今天来捋清楚看似简单的编码问题。</p>
+<p><strong>所有的编码都是指，字符以何种二进制形式存储起来！</strong></p>
+<h5 id="ASCII码"><a href="#ASCII码" class="headerlink" title="ASCII码"></a>ASCII码</h5><p>ASCII码是十分基础的编码，囊括了英文字母，数字和不可打印的控制字符，一共是128个。ASCII码用一个字节的存储，占用了二进制：0000 0000 – 0111 1111<br>这样的一个经典编码，对于英语国家来说或许够用了。但是我大中华上下五千年，汉字上万个，显然是一个字节的二进制是无法表达清楚的，又考虑到不同国家编码标准不一致，导致同一个二进制存储的数据对应的字符不一致。万国码，unicode码也就蛋生了！</p>
+<h5 id="unicode码"><a href="#unicode码" class="headerlink" title="unicode码"></a>unicode码</h5><p>unicode码为每个字符设定了统一并且唯一的一个整数（正式说法是code），也就是说，使用了unicode码为编码规范的字符对应的二进制存储是唯一的。比如说字符“2”：对应的数字是0x32。在shell下：</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">root#  echo -e &quot;\u32&quot;</span><br><span class="line">root#  2</span><br></pre></td></tr></table></figure>
+<p>‘\u’是转义符，是指该字符的unicode码。</p>
+<p>那么问题来了，这种unicode码的字符，对应的二进制存储是什么样的！</p>
+<p>实际上，unicode码仅规定了字符对应的那个整数是什么！并没有规定如何存储，所以unicode码的实现方式又有很多种，这里介绍下大名鼎鼎的utf-8编码！</p>
+<h5 id="utf-8"><a href="#utf-8" class="headerlink" title="utf-8"></a>utf-8</h5><p>1）对于只有一个单字节的符号，字节的第一位设为0，后面7位为这个符号的unicode码（那就是那个整数）。因此对于英语字母，UTF-8编码和ASCII码是相同的。<br>2）对于n字节的符号，第一个字节的前n位都设为1，第n+1位设为0，后面字节的前两位一律设为10。剩下的没有提及的二进制位，全部为这个符号的unicode码。</p>
+<p>utf-8实现了unicode编码规范，互联网中绝大多数平台都采用了她，而非其余的unicode编码规范。</p>
+<h5 id="中文"><a href="#中文" class="headerlink" title="中文"></a>中文</h5><p>在网络中，经常见到中文被转义了，变成了对应的unicode转义码，如上面的’\u32’。值得注意的是，这里不是乱码，而是被转义了。常见的一些原因是中文在某些协议中不被支持，从而转义成常见字符。</p>
 
       
     </div>
     <footer class="article-footer">
-      <a data-url="https://muyizixiu.github.io/2021/06/29/panya/%E5%AF%84%E4%BB%B6/" data-id="ckqhxvqi40027phnc7vd4g26c" data-title="" class="article-share-link">Share</a>
+      <a data-url="https://muyizixiu.github.io/2016/06/20/encoding/" data-id="ckqhy2ca80005m0nedi05c5oe" data-title="unicode utf-8 and encoding" class="article-share-link">Share</a>
       
       
       
@@ -2454,7 +682,7 @@
 
   <nav id="page-nav">
     
-    <span class="page-number current">1</span><a class="page-number" href="/page/2/">2</a><a class="page-number" href="/page/3/">3</a><span class="space">&hellip;</span><a class="page-number" href="/page/14/">14</a><a class="extend next" rel="next" href="/page/2/">Next &raquo;</a>
+    <span class="page-number current">1</span><a class="page-number" href="/page/2/">2</a><a class="extend next" rel="next" href="/page/2/">Next &raquo;</a>
   </nav>
 
 </section>
@@ -2480,7 +708,7 @@
   <div class="widget-wrap">
     <h3 class="widget-title">Archives</h3>
     <div class="widget">
-      <ul class="archive-list"><li class="archive-list-item"><a class="archive-list-link" href="/archives/2021/06/">June 2021</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2018/02/">February 2018</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2018/01/">January 2018</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2017/03/">March 2017</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2017/02/">February 2017</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2016/10/">October 2016</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2016/08/">August 2016</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2016/06/">June 2016</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2016/04/">April 2016</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2016/01/">January 2016</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2015/12/">December 2015</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2015/10/">October 2015</a></li></ul>
+      <ul class="archive-list"><li class="archive-list-item"><a class="archive-list-link" href="/archives/2018/02/">February 2018</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2018/01/">January 2018</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2017/03/">March 2017</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2017/02/">February 2017</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2016/10/">October 2016</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2016/08/">August 2016</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2016/06/">June 2016</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2016/04/">April 2016</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2016/01/">January 2016</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2015/12/">December 2015</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2015/10/">October 2015</a></li></ul>
     </div>
   </div>
 
@@ -2493,23 +721,23 @@
       <ul>
         
           <li>
-            <a href="/2021/06/29/panya/start_c_1/">(no title)</a>
+            <a href="/2018/02/26/curl/">curl追踪http请求跳转</a>
           </li>
         
           <li>
-            <a href="/2021/06/29/panya/start_g_0/">(no title)</a>
+            <a href="/2018/01/29/mysql-bin-log/">bin-log备份脚本</a>
           </li>
         
           <li>
-            <a href="/2021/06/29/panya/%E4%BA%A7%E5%93%81%E4%B8%8E%E6%9C%8D%E5%8A%A1/">(no title)</a>
+            <a href="/2018/01/28/Laravel-where-cache/">Laravel where 条件缓存</a>
           </li>
         
           <li>
-            <a href="/2021/06/29/panya/%E5%80%8B%E4%BA%BA%E4%B8%AD%E5%BF%83/">(no title)</a>
+            <a href="/2017/03/18/vim-map/">vim之键映射</a>
           </li>
         
           <li>
-            <a href="/2021/06/29/panya/%E5%84%AA%E6%83%A0%E6%B4%BB%E5%8B%95/">(no title)</a>
+            <a href="/2017/02/28/hexo/">hexo博客指南</a>
           </li>
         
       </ul>
