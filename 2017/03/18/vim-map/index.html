@@ -1,0 +1,304 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  
+  
+  <title>vim之键映射 | Hexo</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+  <meta name="description" content="前面我有两篇文章，关于vim的入门和autocmd，随着对vim使用的更加深入，vim的配置便不得不提了！ keycodes在vim脚本中，键的映射总是伴随着一些奇怪的符号！例&lt;TAB&gt;,&lt;ESC&gt;这些从字面上可以揣测出来的tab键和esc键，还有些难以猜测的，&lt;S-…&gt;,&lt;A-…&gt;,&lt;CR&gt;。这些事vim的keycode。&lt;S-…">
+<meta property="og:type" content="article">
+<meta property="og:title" content="vim之键映射">
+<meta property="og:url" content="https://muyizixiu.github.io/2017/03/18/vim-map/index.html">
+<meta property="og:site_name" content="Hexo">
+<meta property="og:description" content="前面我有两篇文章，关于vim的入门和autocmd，随着对vim使用的更加深入，vim的配置便不得不提了！ keycodes在vim脚本中，键的映射总是伴随着一些奇怪的符号！例&lt;TAB&gt;,&lt;ESC&gt;这些从字面上可以揣测出来的tab键和esc键，还有些难以猜测的，&lt;S-…&gt;,&lt;A-…&gt;,&lt;CR&gt;。这些事vim的keycode。&lt;S-…">
+<meta property="og:locale" content="en_US">
+<meta property="article:published_time" content="2017-03-18T00:00:00.000Z">
+<meta property="article:modified_time" content="2021-06-29T11:00:50.970Z">
+<meta property="article:author" content="John Doe">
+<meta name="twitter:card" content="summary">
+  
+    <link rel="alternate" href="/atom.xml" title="Hexo" type="application/atom+xml">
+  
+  
+    <link rel="shortcut icon" href="/favicon.png">
+  
+  
+    
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/typeface-source-code-pro@0.0.71/index.min.css">
+
+  
+  
+<link rel="stylesheet" href="/css/style.css">
+
+  
+    
+<link rel="stylesheet" href="/fancybox/jquery.fancybox.min.css">
+
+  
+<meta name="generator" content="Hexo 5.4.0"></head>
+
+<body>
+  <div id="container">
+    <div id="wrap">
+      <header id="header">
+  <div id="banner"></div>
+  <div id="header-outer" class="outer">
+    <div id="header-title" class="inner">
+      <h1 id="logo-wrap">
+        <a href="/" id="logo">Hexo</a>
+      </h1>
+      
+    </div>
+    <div id="header-inner" class="inner">
+      <nav id="main-nav">
+        <a id="main-nav-toggle" class="nav-icon"></a>
+        
+          <a class="main-nav-link" href="/">Home</a>
+        
+          <a class="main-nav-link" href="/archives">Archives</a>
+        
+      </nav>
+      <nav id="sub-nav">
+        
+          <a id="nav-rss-link" class="nav-icon" href="/atom.xml" title="RSS Feed"></a>
+        
+        <a id="nav-search-btn" class="nav-icon" title="Search"></a>
+      </nav>
+      <div id="search-form-wrap">
+        <form action="//google.com/search" method="get" accept-charset="UTF-8" class="search-form"><input type="search" name="q" class="search-form-input" placeholder="Search"><button type="submit" class="search-form-submit">&#xF002;</button><input type="hidden" name="sitesearch" value="https://muyizixiu.github.io"></form>
+      </div>
+    </div>
+  </div>
+</header>
+
+      <div class="outer">
+        <section id="main"><article id="post-vim-map" class="h-entry article article-type-post" itemprop="blogPost" itemscope itemtype="https://schema.org/BlogPosting">
+  <div class="article-meta">
+    <a href="/2017/03/18/vim-map/" class="article-date">
+  <time class="dt-published" datetime="2017-03-18T00:00:00.000Z" itemprop="datePublished">2017-03-18</time>
+</a>
+    
+  <div class="article-category">
+    <a class="article-category-link" href="/categories/%E6%8A%80%E6%9C%AF/">技术</a>
+  </div>
+
+  </div>
+  <div class="article-inner">
+    
+    
+      <header class="article-header">
+        
+  
+    <h1 class="p-name article-title" itemprop="headline name">
+      vim之键映射
+    </h1>
+  
+
+      </header>
+    
+    <div class="e-content article-entry" itemprop="articleBody">
+      
+        <p>前面我有两篇文章，关于vim的<a target="_blank" rel="noopener" href="http://blog.muyizixiu.cn/vim/">入门</a>和<a target="_blank" rel="noopener" href="http://blog.muyizixiu.cn/vim-autocmd/">autocmd</a>，随着对vim使用的更加深入，vim的配置便不得不提了！</p>
+<h2 id="keycodes"><a href="#keycodes" class="headerlink" title="keycodes"></a>keycodes</h2><p>在vim脚本中，键的映射总是伴随着一些奇怪的符号！例&lt;TAB&gt;,&lt;ESC&gt;这些从字面上可以揣测出来的tab键和esc键，还有些难以猜测的，&lt;S-…&gt;,&lt;A-…&gt;,&lt;CR&gt;。这些事vim的keycode。<br>&lt;S-…&gt;和&lt;A-…&gt;是组合键，前者是指shift键组合其余的按键，后者则是Alt键的组合。例如&lt;S-r&gt;,则是指shit组合字母r键。<br>查看每一个详细的按键，在命令模式下，输入:h keycodes 即可</p>
+<h2 id="map"><a href="#map" class="headerlink" title="map"></a>map</h2><p>键映射的关键字是各种map。</p>
+<table>
+<thead>
+<tr>
+<th align="left">命令</th>
+<th align="center">Normal(常规模式)</th>
+<th align="center">Visual(可视化)</th>
+<th align="center">Insert(插入模式)</th>
+<th align="center">Command(命令行模式)</th>
+</tr>
+</thead>
+<tbody><tr>
+<td align="left">:map</td>
+<td align="center">有效</td>
+<td align="center">有效</td>
+<td align="center"></td>
+<td align="center"></td>
+</tr>
+<tr>
+<td align="left">:nmap</td>
+<td align="center">仅在该模式有效</td>
+<td align="center"></td>
+<td align="center"></td>
+<td align="center"></td>
+</tr>
+<tr>
+<td align="left">:vmap</td>
+<td align="center"></td>
+<td align="center">仅在该模式有效</td>
+<td align="center"></td>
+<td align="center"></td>
+</tr>
+<tr>
+<td align="left">:map!</td>
+<td align="center"></td>
+<td align="center"></td>
+<td align="center"></td>
+<td align="center">有效</td>
+</tr>
+<tr>
+<td align="left">:imap</td>
+<td align="center"></td>
+<td align="center"></td>
+<td align="center">仅在该模式有效</td>
+<td align="center"></td>
+</tr>
+<tr>
+<td align="left">:cmap</td>
+<td align="center"></td>
+<td align="center"></td>
+<td align="center"></td>
+<td align="center">仅在该模式有效</td>
+</tr>
+</tbody></table>
+<p>可以看出，map加不同的前缀和后缀组成了不同的映射方式。要注意的是，这里的前缀，n,i,v,c都是对应在各自的模式下才生效。以上所有的映射都是嵌套的（nested），当把一个键或者组合键映射到另一个键或者组合键时，被映射的键或者组合键又映射到另外的键时，会向下嵌套。<br>例如：</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">map a b</span><br><span class="line">map b c</span><br></pre></td></tr></table></figure>
+<p>就等同于将a映射至了c,如果不想发生这种副作用时，在map前加入nore。inoremap,noremap,cnoremap等映射则不发生嵌套。</p>
+<h2 id="快捷键"><a href="#快捷键" class="headerlink" title="快捷键"></a>快捷键</h2><p>仅仅是将一个键映射为另外一个键是没有多大意义的，map映射可以将键映射到命令上。</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">map &lt;S-r&gt; call reload()</span><br></pre></td></tr></table></figure>
+<p>shit组合字母r键，则调用了reload函数，当然，实际上vim没有reload这个函数。<br>这就是vim快捷键的配置。</p>
+<h2 id="清除映射"><a href="#清除映射" class="headerlink" title="清除映射"></a>清除映射</h2><p>mapclear可以清除所有map的映射，单个映射的清楚则是在对应的映射命令字的map前面加上字母un。</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br></pre></td><td class="code"><pre><span class="line">map a b</span><br><span class="line">umap a</span><br><span class="line">imap &lt;S-c&gt;</span><br><span class="line">iunmap &lt;S-c&gt;</span><br><span class="line">&quot;清除所有map的映射则使用mapclear</span><br><span class="line">mapclear</span><br><span class="line">&quot;清除所有imap的映射则使用imapclear</span><br><span class="line">imapclear</span><br></pre></td></tr></table></figure>
+
+      
+    </div>
+    <footer class="article-footer">
+      <a data-url="https://muyizixiu.github.io/2017/03/18/vim-map/" data-id="ckqhxvqgo000zphnc61468h29" data-title="vim之键映射" class="article-share-link">Share</a>
+      
+      
+      
+    </footer>
+  </div>
+  
+    
+<nav id="article-nav">
+  
+    <a href="/2018/01/28/Laravel-where-cache/" id="article-nav-newer" class="article-nav-link-wrap">
+      <strong class="article-nav-caption">Newer</strong>
+      <div class="article-nav-title">
+        
+          Laravel where 条件缓存
+        
+      </div>
+    </a>
+  
+  
+    <a href="/2017/02/28/hexo/" id="article-nav-older" class="article-nav-link-wrap">
+      <strong class="article-nav-caption">Older</strong>
+      <div class="article-nav-title">hexo博客指南</div>
+    </a>
+  
+</nav>
+
+  
+</article>
+
+
+</section>
+        
+          <aside id="sidebar">
+  
+    
+  <div class="widget-wrap">
+    <h3 class="widget-title">Categories</h3>
+    <div class="widget">
+      <ul class="category-list"><li class="category-list-item"><a class="category-list-link" href="/categories/%E6%8A%80%E6%9C%AF/">技术</a><ul class="category-list-child"><li class="category-list-item"><a class="category-list-link" href="/categories/%E6%8A%80%E6%9C%AF/mysql/">mysql</a></li><li class="category-list-item"><a class="category-list-link" href="/categories/%E6%8A%80%E6%9C%AF/php/">php</a></li></ul></li></ul>
+    </div>
+  </div>
+
+
+  
+    
+
+  
+    
+  
+    
+  <div class="widget-wrap">
+    <h3 class="widget-title">Archives</h3>
+    <div class="widget">
+      <ul class="archive-list"><li class="archive-list-item"><a class="archive-list-link" href="/archives/2021/06/">June 2021</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2018/02/">February 2018</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2018/01/">January 2018</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2017/03/">March 2017</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2017/02/">February 2017</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2016/10/">October 2016</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2016/08/">August 2016</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2016/06/">June 2016</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2016/04/">April 2016</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2016/01/">January 2016</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2015/12/">December 2015</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2015/10/">October 2015</a></li></ul>
+    </div>
+  </div>
+
+
+  
+    
+  <div class="widget-wrap">
+    <h3 class="widget-title">Recent Posts</h3>
+    <div class="widget">
+      <ul>
+        
+          <li>
+            <a href="/2021/06/29/panya/start_c_1/">(no title)</a>
+          </li>
+        
+          <li>
+            <a href="/2021/06/29/panya/start_g_0/">(no title)</a>
+          </li>
+        
+          <li>
+            <a href="/2021/06/29/panya/%E4%BA%A7%E5%93%81%E4%B8%8E%E6%9C%8D%E5%8A%A1/">(no title)</a>
+          </li>
+        
+          <li>
+            <a href="/2021/06/29/panya/%E5%80%8B%E4%BA%BA%E4%B8%AD%E5%BF%83/">(no title)</a>
+          </li>
+        
+          <li>
+            <a href="/2021/06/29/panya/%E5%84%AA%E6%83%A0%E6%B4%BB%E5%8B%95/">(no title)</a>
+          </li>
+        
+      </ul>
+    </div>
+  </div>
+
+  
+</aside>
+        
+      </div>
+      <footer id="footer">
+  
+  <div class="outer">
+    <div id="footer-info" class="inner">
+      
+      &copy; 2021 John Doe<br>
+      Powered by <a href="https://hexo.io/" target="_blank">Hexo</a>
+    </div>
+  </div>
+</footer>
+
+    </div>
+    <nav id="mobile-nav">
+  
+    <a href="/" class="mobile-nav-link">Home</a>
+  
+    <a href="/archives" class="mobile-nav-link">Archives</a>
+  
+</nav>
+    
+
+
+<script src="/js/jquery-3.4.1.min.js"></script>
+
+
+
+  
+<script src="/fancybox/jquery.fancybox.min.js"></script>
+
+
+
+
+<script src="/js/script.js"></script>
+
+
+
+
+
+  </div>
+</body>
+</html>

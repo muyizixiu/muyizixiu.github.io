@@ -1,0 +1,254 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  
+  
+  <title>Laravel where 条件缓存 | Hexo</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+  <meta name="description" content="Laravel where 条件缓存在Laravel中，使用门面提供的DB类，以QueryBuilder的形式去操作数据库是一种很常见的形式。由DB::table($tablename)提供的对象即是QueryBuilder类的。这里面值得注意的一点是：在获取完数据之后，QueryBuilder 对象并不会释放其缓存内容。这里的缓存内容指的是查询条件，例如：where,join,groups等条件">
+<meta property="og:type" content="article">
+<meta property="og:title" content="Laravel where 条件缓存">
+<meta property="og:url" content="https://muyizixiu.github.io/2018/01/28/Laravel-where-cache/index.html">
+<meta property="og:site_name" content="Hexo">
+<meta property="og:description" content="Laravel where 条件缓存在Laravel中，使用门面提供的DB类，以QueryBuilder的形式去操作数据库是一种很常见的形式。由DB::table($tablename)提供的对象即是QueryBuilder类的。这里面值得注意的一点是：在获取完数据之后，QueryBuilder 对象并不会释放其缓存内容。这里的缓存内容指的是查询条件，例如：where,join,groups等条件">
+<meta property="og:locale" content="en_US">
+<meta property="article:published_time" content="2018-01-28T00:00:00.000Z">
+<meta property="article:modified_time" content="2021-06-29T11:00:50.934Z">
+<meta property="article:author" content="John Doe">
+<meta name="twitter:card" content="summary">
+  
+    <link rel="alternate" href="/atom.xml" title="Hexo" type="application/atom+xml">
+  
+  
+    <link rel="shortcut icon" href="/favicon.png">
+  
+  
+    
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/typeface-source-code-pro@0.0.71/index.min.css">
+
+  
+  
+<link rel="stylesheet" href="/css/style.css">
+
+  
+    
+<link rel="stylesheet" href="/fancybox/jquery.fancybox.min.css">
+
+  
+<meta name="generator" content="Hexo 5.4.0"></head>
+
+<body>
+  <div id="container">
+    <div id="wrap">
+      <header id="header">
+  <div id="banner"></div>
+  <div id="header-outer" class="outer">
+    <div id="header-title" class="inner">
+      <h1 id="logo-wrap">
+        <a href="/" id="logo">Hexo</a>
+      </h1>
+      
+    </div>
+    <div id="header-inner" class="inner">
+      <nav id="main-nav">
+        <a id="main-nav-toggle" class="nav-icon"></a>
+        
+          <a class="main-nav-link" href="/">Home</a>
+        
+          <a class="main-nav-link" href="/archives">Archives</a>
+        
+      </nav>
+      <nav id="sub-nav">
+        
+          <a id="nav-rss-link" class="nav-icon" href="/atom.xml" title="RSS Feed"></a>
+        
+        <a id="nav-search-btn" class="nav-icon" title="Search"></a>
+      </nav>
+      <div id="search-form-wrap">
+        <form action="//google.com/search" method="get" accept-charset="UTF-8" class="search-form"><input type="search" name="q" class="search-form-input" placeholder="Search"><button type="submit" class="search-form-submit">&#xF002;</button><input type="hidden" name="sitesearch" value="https://muyizixiu.github.io"></form>
+      </div>
+    </div>
+  </div>
+</header>
+
+      <div class="outer">
+        <section id="main"><article id="post-Laravel-where-cache" class="h-entry article article-type-post" itemprop="blogPost" itemscope itemtype="https://schema.org/BlogPosting">
+  <div class="article-meta">
+    <a href="/2018/01/28/Laravel-where-cache/" class="article-date">
+  <time class="dt-published" datetime="2018-01-28T00:00:00.000Z" itemprop="datePublished">2018-01-28</time>
+</a>
+    
+  <div class="article-category">
+    <a class="article-category-link" href="/categories/%E6%8A%80%E6%9C%AF/">技术</a>►<a class="article-category-link" href="/categories/%E6%8A%80%E6%9C%AF/php/">php</a>
+  </div>
+
+  </div>
+  <div class="article-inner">
+    
+    
+      <header class="article-header">
+        
+  
+    <h1 class="p-name article-title" itemprop="headline name">
+      Laravel where 条件缓存
+    </h1>
+  
+
+      </header>
+    
+    <div class="e-content article-entry" itemprop="articleBody">
+      
+        <h1 id="Laravel-where-条件缓存"><a href="#Laravel-where-条件缓存" class="headerlink" title="Laravel where 条件缓存"></a>Laravel where 条件缓存</h1><p>在Laravel中，使用门面提供的DB类，以QueryBuilder的形式去操作数据库是一种很常见的形式。由DB::table($tablename)提供的对象即是QueryBuilder类的。这里面值得注意的一点是：在获取完数据之后，QueryBuilder 对象并不会释放其缓存内容。这里的缓存内容指的是查询条件，例如：where,join,groups等条件。这有可能会导致一个问题，下面是问题代码的示范:</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br></pre></td><td class="code"><pre><span class="line">&lt;?php</span><br><span class="line">\DB::listen(function($query)&#123;</span><br><span class="line">    echo &quot;\n&quot;,$query-&gt;sql;</span><br><span class="line">&#125;);</span><br><span class="line">\DB::table(&#x27;seeed_user&#x27;)-&gt;select(&#x27;*&#x27;)-&gt;where(&#x27;id&#x27;,&#x27;=&#x27;,&#x27;1&#x27;)-&gt;get();//正常查询</span><br><span class="line">\DB::table(&#x27;seeed_user&#x27;)-&gt;select(&#x27;*&#x27;)-&gt;where(&#x27;id&#x27;,&#x27;!=&#x27;,&#x27;1&#x27;)-&gt;get();//正常查询</span><br><span class="line">$table = \DB::table(&#x27;seeed_user&#x27;);//缓存QueryBuilder对象</span><br><span class="line">$table-&gt;select(&#x27;*&#x27;)-&gt;where(&#x27;id&#x27;,&#x27;=&#x27;,&#x27;1&#x27;)-&gt;get();//正常查询</span><br><span class="line">$table-&gt;select(&#x27;*&#x27;)-&gt;where(&#x27;id&#x27;,&#x27;!=&#x27;,&#x27;1&#x27;)-&gt;get();//这里的sql查询不正常,受上一条查询sql的影响</span><br></pre></td></tr></table></figure>
+
+<p>其打印内容为:</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line">select * from `seeed_user` where `id` = ?</span><br><span class="line">select * from `seeed_user` where `id` != ?</span><br><span class="line">select * from `seeed_user` where `id` = ?</span><br><span class="line">select * from `seeed_user` where `id` = ? and `id` != ?</span><br></pre></td></tr></table></figure>
+<p>前两条sql明显是正确的，在缓存QueryBuilder对象之后，最后一条sql明显收到了前一条sql的影响。</p>
+<p>这里的测试是基于lumen框架(laravel框架的简化版)和phpunit，完整代码如下:</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br></pre></td><td class="code"><pre><span class="line">&lt;?php</span><br><span class="line"></span><br><span class="line">class ExampleTest extends TestCase</span><br><span class="line">&#123;</span><br><span class="line"></span><br><span class="line">    public function testQueryBuilder()</span><br><span class="line">    &#123;</span><br><span class="line">        \DB::listen(function($query)&#123;</span><br><span class="line">            echo &quot;\n&quot;,$query-&gt;sql;</span><br><span class="line">        &#125;);</span><br><span class="line">        \DB::table(&#x27;seeed_user&#x27;)-&gt;select(&#x27;*&#x27;)-&gt;where(&#x27;id&#x27;,&#x27;=&#x27;,&#x27;1&#x27;)-&gt;get();</span><br><span class="line">        \DB::table(&#x27;seeed_user&#x27;)-&gt;select(&#x27;*&#x27;)-&gt;where(&#x27;id&#x27;,&#x27;!=&#x27;,&#x27;1&#x27;)-&gt;get();</span><br><span class="line">        $table = \DB::table(&#x27;seeed_user&#x27;);</span><br><span class="line">        $table-&gt;select(&#x27;*&#x27;)-&gt;where(&#x27;id&#x27;,&#x27;=&#x27;,&#x27;1&#x27;)-&gt;get();</span><br><span class="line">        $table-&gt;select(&#x27;*&#x27;)-&gt;where(&#x27;id&#x27;,&#x27;!=&#x27;,&#x27;1&#x27;)-&gt;get();</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>使用phpunit –verbose 选项可以观察到sql的打印。</p>
+<p>另外两个值得注意的源码知识点是：</p>
+<ol>
+<li>在laravel中开启了withEloquent（在bootstrap/app.php中），实际上就有了class_alias(类别名)，就如同上面的DB类，可以直接在使用根命名空间\DB;</li>
+<li>Laravel的Database的实现如果想迁移到其余框架里面，除了向laravel一样注入配置，还可以利用里面实现的Capsule类</li>
+</ol>
+
+      
+    </div>
+    <footer class="article-footer">
+      <a data-url="https://muyizixiu.github.io/2018/01/28/Laravel-where-cache/" data-id="ckqhxvqft0000phnchlfj4n14" data-title="Laravel where 条件缓存" class="article-share-link">Share</a>
+      
+      
+      
+    </footer>
+  </div>
+  
+    
+<nav id="article-nav">
+  
+    <a href="/2018/01/29/mysql-bin-log/" id="article-nav-newer" class="article-nav-link-wrap">
+      <strong class="article-nav-caption">Newer</strong>
+      <div class="article-nav-title">
+        
+          bin-log备份脚本
+        
+      </div>
+    </a>
+  
+  
+    <a href="/2017/03/18/vim-map/" id="article-nav-older" class="article-nav-link-wrap">
+      <strong class="article-nav-caption">Older</strong>
+      <div class="article-nav-title">vim之键映射</div>
+    </a>
+  
+</nav>
+
+  
+</article>
+
+
+</section>
+        
+          <aside id="sidebar">
+  
+    
+  <div class="widget-wrap">
+    <h3 class="widget-title">Categories</h3>
+    <div class="widget">
+      <ul class="category-list"><li class="category-list-item"><a class="category-list-link" href="/categories/%E6%8A%80%E6%9C%AF/">技术</a><ul class="category-list-child"><li class="category-list-item"><a class="category-list-link" href="/categories/%E6%8A%80%E6%9C%AF/mysql/">mysql</a></li><li class="category-list-item"><a class="category-list-link" href="/categories/%E6%8A%80%E6%9C%AF/php/">php</a></li></ul></li></ul>
+    </div>
+  </div>
+
+
+  
+    
+
+  
+    
+  
+    
+  <div class="widget-wrap">
+    <h3 class="widget-title">Archives</h3>
+    <div class="widget">
+      <ul class="archive-list"><li class="archive-list-item"><a class="archive-list-link" href="/archives/2021/06/">June 2021</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2018/02/">February 2018</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2018/01/">January 2018</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2017/03/">March 2017</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2017/02/">February 2017</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2016/10/">October 2016</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2016/08/">August 2016</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2016/06/">June 2016</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2016/04/">April 2016</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2016/01/">January 2016</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2015/12/">December 2015</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2015/10/">October 2015</a></li></ul>
+    </div>
+  </div>
+
+
+  
+    
+  <div class="widget-wrap">
+    <h3 class="widget-title">Recent Posts</h3>
+    <div class="widget">
+      <ul>
+        
+          <li>
+            <a href="/2021/06/29/panya/start_c_1/">(no title)</a>
+          </li>
+        
+          <li>
+            <a href="/2021/06/29/panya/start_g_0/">(no title)</a>
+          </li>
+        
+          <li>
+            <a href="/2021/06/29/panya/%E4%BA%A7%E5%93%81%E4%B8%8E%E6%9C%8D%E5%8A%A1/">(no title)</a>
+          </li>
+        
+          <li>
+            <a href="/2021/06/29/panya/%E5%80%8B%E4%BA%BA%E4%B8%AD%E5%BF%83/">(no title)</a>
+          </li>
+        
+          <li>
+            <a href="/2021/06/29/panya/%E5%84%AA%E6%83%A0%E6%B4%BB%E5%8B%95/">(no title)</a>
+          </li>
+        
+      </ul>
+    </div>
+  </div>
+
+  
+</aside>
+        
+      </div>
+      <footer id="footer">
+  
+  <div class="outer">
+    <div id="footer-info" class="inner">
+      
+      &copy; 2021 John Doe<br>
+      Powered by <a href="https://hexo.io/" target="_blank">Hexo</a>
+    </div>
+  </div>
+</footer>
+
+    </div>
+    <nav id="mobile-nav">
+  
+    <a href="/" class="mobile-nav-link">Home</a>
+  
+    <a href="/archives" class="mobile-nav-link">Archives</a>
+  
+</nav>
+    
+
+
+<script src="/js/jquery-3.4.1.min.js"></script>
+
+
+
+  
+<script src="/fancybox/jquery.fancybox.min.js"></script>
+
+
+
+
+<script src="/js/script.js"></script>
+
+
+
+
+
+  </div>
+</body>
+</html>

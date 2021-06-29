@@ -1,0 +1,432 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  
+  
+  <title>Hexo</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+  <meta name="description" content="if (!window.$axure) window.$axure &#x3D; function () { }; if (typeof console &#x3D;&#x3D; &#39;undefined&#39;) console &#x3D; {     log: function () { } }; if(window._axUtils) $axure.utils &#x3D; _axUtils;  $axure.loadDocument &#x3D; func">
+<meta property="og:type" content="article">
+<meta property="og:title" content="Hexo">
+<meta property="og:url" content="https://muyizixiu.github.io/2021/06/29/panya/resources/scripts/player/axplayer/index.html">
+<meta property="og:site_name" content="Hexo">
+<meta property="og:description" content="if (!window.$axure) window.$axure &#x3D; function () { }; if (typeof console &#x3D;&#x3D; &#39;undefined&#39;) console &#x3D; {     log: function () { } }; if(window._axUtils) $axure.utils &#x3D; _axUtils;  $axure.loadDocument &#x3D; func">
+<meta property="og:locale" content="en_US">
+<meta property="article:published_time" content="2021-06-29T11:00:50.962Z">
+<meta property="article:modified_time" content="2021-06-29T11:00:50.962Z">
+<meta property="article:author" content="John Doe">
+<meta name="twitter:card" content="summary">
+  
+    <link rel="alternate" href="/atom.xml" title="Hexo" type="application/atom+xml">
+  
+  
+    <link rel="shortcut icon" href="/favicon.png">
+  
+  
+    
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/typeface-source-code-pro@0.0.71/index.min.css">
+
+  
+  
+<link rel="stylesheet" href="/css/style.css">
+
+  
+    
+<link rel="stylesheet" href="/fancybox/jquery.fancybox.min.css">
+
+  
+<meta name="generator" content="Hexo 5.4.0"></head>
+
+<body>
+  <div id="container">
+    <div id="wrap">
+      <header id="header">
+  <div id="banner"></div>
+  <div id="header-outer" class="outer">
+    <div id="header-title" class="inner">
+      <h1 id="logo-wrap">
+        <a href="/" id="logo">Hexo</a>
+      </h1>
+      
+    </div>
+    <div id="header-inner" class="inner">
+      <nav id="main-nav">
+        <a id="main-nav-toggle" class="nav-icon"></a>
+        
+          <a class="main-nav-link" href="/">Home</a>
+        
+          <a class="main-nav-link" href="/archives">Archives</a>
+        
+      </nav>
+      <nav id="sub-nav">
+        
+          <a id="nav-rss-link" class="nav-icon" href="/atom.xml" title="RSS Feed"></a>
+        
+        <a id="nav-search-btn" class="nav-icon" title="Search"></a>
+      </nav>
+      <div id="search-form-wrap">
+        <form action="//google.com/search" method="get" accept-charset="UTF-8" class="search-form"><input type="search" name="q" class="search-form-input" placeholder="Search"><button type="submit" class="search-form-submit">&#xF002;</button><input type="hidden" name="sitesearch" value="https://muyizixiu.github.io"></form>
+      </div>
+    </div>
+  </div>
+</header>
+
+      <div class="outer">
+        <section id="main"><article id="post-panya/resources/scripts/player/axplayer" class="h-entry article article-type-post" itemprop="blogPost" itemscope itemtype="https://schema.org/BlogPosting">
+  <div class="article-meta">
+    <a href="/2021/06/29/panya/resources/scripts/player/axplayer/" class="article-date">
+  <time class="dt-published" datetime="2021-06-29T11:00:50.962Z" itemprop="datePublished">2021-06-29</time>
+</a>
+    
+  </div>
+  <div class="article-inner">
+    
+    
+    <div class="e-content article-entry" itemprop="articleBody">
+      
+        if (!window.$axure) window.$axure = function () { };
+if (typeof console == 'undefined') console = {
+    log: function () { }
+};
+if(window._axUtils) $axure.utils = _axUtils;
+
+$axure.loadDocument = function(document) {
+    $axure.document = document;
+};
+
+function setUpController() {
+
+    //$axure.utils = _axUtils;
+
+    var _page = {};
+    $axure.page = _page;
+
+    $axure.utils.makeBindable(_page, ['load']);
+
+    var _player = function() {
+    };
+    $axure.player = _player;
+
+    //-----------------------------------------
+    //Global Var array, getLinkUrl function and setGlobalVar listener are
+    //for use in setting global vars in page url string when clicking a 
+    //page in the sitemap
+    //-----------------------------------------
+    var _globalVars = {};
+
+    //-----------------------------------------
+    //Used by getLinkUrl below to check if local server is running 
+    //in order to send back the global variables as a query string
+    //in the page url
+    //-----------------------------------------
+    var _shouldSendVarsToServer = function () {
+        //If exception occurs (due to page in content frame being from a different domain, etc)
+        //then run the check without the url (which will end up checking against sitemap url)
+        try {
+            var mainFrame = document.getElementById("mainFrame");
+            return $axure.shouldSendVarsToServer(mainFrame.contentWindow.location.href);
+        } catch (e) {
+            return $axure.shouldSendVarsToServer();
+        }
+    };
+
+    var _getLinkUrl = function (baseUrl) {
+        var toAdd = '';
+        for(var globalVarName in _globalVars) {
+            var val = _globalVars[globalVarName];
+            if(val != null) {
+                if(toAdd.length > 0) toAdd += '&';
+                toAdd += globalVarName + '=' + encodeURIComponent(val);
+            }
+        }
+        return toAdd.length > 0 ? baseUrl + (_shouldSendVarsToServer() ? '?' : '#') + toAdd + "&CSUM=1" : baseUrl;
+    };
+    $axure.getLinkUrlWithVars = _getLinkUrl;
+
+    $axure.messageCenter.addMessageListener(function(message, data) {
+        if (message == 'setGlobalVar'){
+            _globalVars[data.globalVarName] = data.globalVarValue;
+        }
+    });
+
+    $axure.messageCenter.addStateListener('page.data', function (key, value) {
+        for (var subKey in value) {
+            _page[subKey] = value[subKey];
+        }
+        $axure.page.triggerEvent('load');
+    });
+
+    // ---------------------------------------------
+    // Navigates the main frame (setting the currently visible page). If the link is relative,
+    // this method should test if it is actually a axure rp page being loaded and properly set
+    // up all the controller for the page if it is
+    // ---------------------------------------------
+    _page.navigate = function (url, includeVariables) {
+        var mainFrame = document.getElementById("mainFrame");
+        //var mainFrame = window.parent.mainFrame;
+        // if this is a relative url...
+        var urlToLoad;
+        if (url.indexOf(':') < 0 || url[0] == '/') {
+            var winHref = window.location.href;
+            var page = winHref.substring(0, winHref.lastIndexOf('/') + 1) + url;
+            urlToLoad = page;
+        } else {
+            urlToLoad = url;
+        }
+        if (!includeVariables) {
+            mainFrame.contentWindow.location.href = urlToLoad;
+            return;
+        }
+        var urlWithVars = $axure.getLinkUrlWithVars(urlToLoad);
+        var currentData = $axure.messageCenter.getState('page.data');
+        var currentUrl = currentData && currentData.location;
+        if(currentUrl && currentUrl.indexOf('#') != -1) currentUrl = currentUrl.substring(0, currentUrl.indexOf('#'))
+
+        // this is so we can make sure the current frame reloads if the variables have changed
+        // by default, if the location is the same but the hash code is different, the browser will not
+        // trigger a reload
+        mainFrame.contentWindow.location.href =
+            currentUrl && urlToLoad.toLowerCase() != currentUrl.toLowerCase()
+                ? urlWithVars
+                : 'resources/reload.html#' + encodeURI(urlWithVars);
+
+    };
+
+    var pluginIds = [];
+    var plugins = {};
+    var currentVisibleHostId = null;
+    // ---------------------------------------------
+    // Adds a tool box frame from a url to the interface. This is useful for loading plugins
+    // settings is an object that supports the following properties:
+    //    - id : the id of the element for the plugin
+    //    - context : the context to create the plugin host for
+    //    - title : the user-visible caption for the plugin
+    // ---------------------------------------------
+    _player.createPluginHost = function (settings) {
+        // right now we only understand an interface context
+        if (!(!settings.context || settings.context === 'interface')) {
+            throw ('unknown context type');
+        }
+        if (!settings.id) throw ('each plugin host needs an id');
+
+        var host = $('<div id=' + settings.id + '></div>')
+            .appendTo('#interfaceControlFrameHostContainer');
+
+        host.hide();
+
+        var headerLink = $('<a pluginId="' + settings.id + '" >' + settings.title.toUpperCase() + '</a>');
+
+        headerLink
+            .click($axure.utils.curry(interfaceControlHeaderButton_click, settings.id)).wrap('<li id="' + settings.id + 'Btn">');
+
+        if((settings.id == 'feedbackHost' || settings.id == 'feedbackContainer') && pluginIds[pluginIds.length - 1] == 'debugHost') headerLink.parent().insertBefore('#debugHostBtn');
+        else headerLink.parent().appendTo('#interfaceControlFrameHeader');
+        
+        pluginIds[pluginIds.length] = settings.id;
+        plugins[settings.id] = settings;
+
+        $(document).trigger('pluginCreated', [settings.gid]);
+    };
+
+    // private methods
+    var interfaceControlHeaderButton_click = function (id) {
+        var clickedPlugin = $('#interfaceControlFrameHeader a[pluginId=' + id + ']');
+        if(clickedPlugin.hasClass('selected')) {
+            clickedPlugin.removeClass('selected');
+            $('#' + id).hide();
+            _player.collapseToBar();
+
+            $(document).trigger('pluginShown',['']);
+        } else {
+            $('#interfaceControlFrameHeader a').removeClass('selected');
+            clickedPlugin.addClass('selected');
+
+            $('#' + currentVisibleHostId).hide();
+            $('#' + id).show();
+            currentVisibleHostId = id;
+            _player.expandFromBar();
+
+            $(document).trigger('pluginShown', [plugins[id].gid]);
+        }
+
+        $(document).trigger('ContainerHeightChange');
+    };
+
+    $axure.player.showPlugin = function(gid) {
+        for(var id in plugins) {
+            if(plugins[id].gid == gid) {
+                $('a[pluginId="' + id + '"]').click();
+                break;
+            }
+        }
+    };
+}
+
+function setUpDocumentStateManager() {
+    var mgr = $axure.prototype.documentStateManager = {};
+    $axure.utils.makeBindable(mgr, ['globalVariableChanged']);
+
+    mgr.globalVariableValues = {};
+
+    mgr.setGlobalVariable = function(varname, value, source) {
+        var arg = {};
+        arg.variableName = varname;
+        arg.newValue = value;
+        arg.oldValue = this.getGlobalVariable(varname);
+        arg.source = source;
+
+        mgr.globalVariableValues[varname] = value;
+        this.triggerEvent('globalVariableChanged', arg);
+    };
+
+    mgr.getGlobalVariable = function(varname) {
+        return mgr.globalVariableValues[varname];
+    };
+}
+
+
+function setUpPageStateManager() {
+    var mgr = $axure.prototype.pageStateManager = {};
+
+    mgr.panelToStateIds = {};
+}
+
+      
+    </div>
+    <footer class="article-footer">
+      <a data-url="https://muyizixiu.github.io/2021/06/29/panya/resources/scripts/player/axplayer/" data-id="ckqhxvqhx0020phncf6fp8v44" data-title="" class="article-share-link">Share</a>
+      
+      
+      
+    </footer>
+  </div>
+  
+    
+<nav id="article-nav">
+  
+    <a href="/2021/06/29/panya/resources/css/images/images/" id="article-nav-newer" class="article-nav-link-wrap">
+      <strong class="article-nav-caption">Newer</strong>
+      <div class="article-nav-title">
+        
+          (no title)
+        
+      </div>
+    </a>
+  
+  
+    <a href="/2021/06/29/panya/resources/scripts/player/splitter/" id="article-nav-older" class="article-nav-link-wrap">
+      <strong class="article-nav-caption">Older</strong>
+      <div class="article-nav-title"></div>
+    </a>
+  
+</nav>
+
+  
+</article>
+
+
+</section>
+        
+          <aside id="sidebar">
+  
+    
+  <div class="widget-wrap">
+    <h3 class="widget-title">Categories</h3>
+    <div class="widget">
+      <ul class="category-list"><li class="category-list-item"><a class="category-list-link" href="/categories/%E6%8A%80%E6%9C%AF/">技术</a><ul class="category-list-child"><li class="category-list-item"><a class="category-list-link" href="/categories/%E6%8A%80%E6%9C%AF/mysql/">mysql</a></li><li class="category-list-item"><a class="category-list-link" href="/categories/%E6%8A%80%E6%9C%AF/php/">php</a></li></ul></li></ul>
+    </div>
+  </div>
+
+
+  
+    
+
+  
+    
+  
+    
+  <div class="widget-wrap">
+    <h3 class="widget-title">Archives</h3>
+    <div class="widget">
+      <ul class="archive-list"><li class="archive-list-item"><a class="archive-list-link" href="/archives/2021/06/">June 2021</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2018/02/">February 2018</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2018/01/">January 2018</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2017/03/">March 2017</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2017/02/">February 2017</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2016/10/">October 2016</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2016/08/">August 2016</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2016/06/">June 2016</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2016/04/">April 2016</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2016/01/">January 2016</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2015/12/">December 2015</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2015/10/">October 2015</a></li></ul>
+    </div>
+  </div>
+
+
+  
+    
+  <div class="widget-wrap">
+    <h3 class="widget-title">Recent Posts</h3>
+    <div class="widget">
+      <ul>
+        
+          <li>
+            <a href="/2021/06/29/panya/start_c_1/">(no title)</a>
+          </li>
+        
+          <li>
+            <a href="/2021/06/29/panya/start_g_0/">(no title)</a>
+          </li>
+        
+          <li>
+            <a href="/2021/06/29/panya/%E4%BA%A7%E5%93%81%E4%B8%8E%E6%9C%8D%E5%8A%A1/">(no title)</a>
+          </li>
+        
+          <li>
+            <a href="/2021/06/29/panya/%E5%80%8B%E4%BA%BA%E4%B8%AD%E5%BF%83/">(no title)</a>
+          </li>
+        
+          <li>
+            <a href="/2021/06/29/panya/%E5%84%AA%E6%83%A0%E6%B4%BB%E5%8B%95/">(no title)</a>
+          </li>
+        
+      </ul>
+    </div>
+  </div>
+
+  
+</aside>
+        
+      </div>
+      <footer id="footer">
+  
+  <div class="outer">
+    <div id="footer-info" class="inner">
+      
+      &copy; 2021 John Doe<br>
+      Powered by <a href="https://hexo.io/" target="_blank">Hexo</a>
+    </div>
+  </div>
+</footer>
+
+    </div>
+    <nav id="mobile-nav">
+  
+    <a href="/" class="mobile-nav-link">Home</a>
+  
+    <a href="/archives" class="mobile-nav-link">Archives</a>
+  
+</nav>
+    
+
+
+<script src="/js/jquery-3.4.1.min.js"></script>
+
+
+
+  
+<script src="/fancybox/jquery.fancybox.min.js"></script>
+
+
+
+
+<script src="/js/script.js"></script>
+
+
+
+
+
+  </div>
+</body>
+</html>

@@ -1,0 +1,268 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  
+  
+  <title>curl追踪http请求跳转 | Hexo</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+  <meta name="description" content="在网路中，http(s)跳转是常见的一种行为，例如：301永久重定向，302临时重定向。而curl是一种命令行发起请求的工具。在工作中，我们项目遇到一个难以理解的跳转行为，最终利用curl和nginx配置文件，理解了该跳转行为。 问题描述项目中存在一个老的资源地址 www.old.com, 仅支持http访问。新的需求要求将一个新的地址 www.new.com, 无论http&#x2F;https都要跳转至">
+<meta property="og:type" content="article">
+<meta property="og:title" content="curl追踪http请求跳转">
+<meta property="og:url" content="https://muyizixiu.github.io/2018/02/26/curl/index.html">
+<meta property="og:site_name" content="Hexo">
+<meta property="og:description" content="在网路中，http(s)跳转是常见的一种行为，例如：301永久重定向，302临时重定向。而curl是一种命令行发起请求的工具。在工作中，我们项目遇到一个难以理解的跳转行为，最终利用curl和nginx配置文件，理解了该跳转行为。 问题描述项目中存在一个老的资源地址 www.old.com, 仅支持http访问。新的需求要求将一个新的地址 www.new.com, 无论http&#x2F;https都要跳转至">
+<meta property="og:locale" content="en_US">
+<meta property="article:published_time" content="2018-02-26T00:00:00.000Z">
+<meta property="article:modified_time" content="2021-06-29T11:00:50.934Z">
+<meta property="article:author" content="John Doe">
+<meta name="twitter:card" content="summary">
+  
+    <link rel="alternate" href="/atom.xml" title="Hexo" type="application/atom+xml">
+  
+  
+    <link rel="shortcut icon" href="/favicon.png">
+  
+  
+    
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/typeface-source-code-pro@0.0.71/index.min.css">
+
+  
+  
+<link rel="stylesheet" href="/css/style.css">
+
+  
+    
+<link rel="stylesheet" href="/fancybox/jquery.fancybox.min.css">
+
+  
+<meta name="generator" content="Hexo 5.4.0"></head>
+
+<body>
+  <div id="container">
+    <div id="wrap">
+      <header id="header">
+  <div id="banner"></div>
+  <div id="header-outer" class="outer">
+    <div id="header-title" class="inner">
+      <h1 id="logo-wrap">
+        <a href="/" id="logo">Hexo</a>
+      </h1>
+      
+    </div>
+    <div id="header-inner" class="inner">
+      <nav id="main-nav">
+        <a id="main-nav-toggle" class="nav-icon"></a>
+        
+          <a class="main-nav-link" href="/">Home</a>
+        
+          <a class="main-nav-link" href="/archives">Archives</a>
+        
+      </nav>
+      <nav id="sub-nav">
+        
+          <a id="nav-rss-link" class="nav-icon" href="/atom.xml" title="RSS Feed"></a>
+        
+        <a id="nav-search-btn" class="nav-icon" title="Search"></a>
+      </nav>
+      <div id="search-form-wrap">
+        <form action="//google.com/search" method="get" accept-charset="UTF-8" class="search-form"><input type="search" name="q" class="search-form-input" placeholder="Search"><button type="submit" class="search-form-submit">&#xF002;</button><input type="hidden" name="sitesearch" value="https://muyizixiu.github.io"></form>
+      </div>
+    </div>
+  </div>
+</header>
+
+      <div class="outer">
+        <section id="main"><article id="post-curl" class="h-entry article article-type-post" itemprop="blogPost" itemscope itemtype="https://schema.org/BlogPosting">
+  <div class="article-meta">
+    <a href="/2018/02/26/curl/" class="article-date">
+  <time class="dt-published" datetime="2018-02-26T00:00:00.000Z" itemprop="datePublished">2018-02-26</time>
+</a>
+    
+  <div class="article-category">
+    <a class="article-category-link" href="/categories/%E6%8A%80%E6%9C%AF/">技术</a>
+  </div>
+
+  </div>
+  <div class="article-inner">
+    
+    
+      <header class="article-header">
+        
+  
+    <h1 class="p-name article-title" itemprop="headline name">
+      curl追踪http请求跳转
+    </h1>
+  
+
+      </header>
+    
+    <div class="e-content article-entry" itemprop="articleBody">
+      
+        <p>在网路中，http(s)跳转是常见的一种行为，例如：301永久重定向，302临时重定向。而curl是一种命令行发起请求的工具。在工作中，我们项目遇到一个难以理解的跳转行为，最终利用curl和nginx配置文件，理解了该跳转行为。</p>
+<h2 id="问题描述"><a href="#问题描述" class="headerlink" title="问题描述"></a>问题描述</h2><p>项目中存在一个老的资源地址 <a target="_blank" rel="noopener" href="http://www.old.com/">www.old.com</a>, 仅支持http访问。新的需求要求将一个新的地址 <a target="_blank" rel="noopener" href="http://www.new.com/">www.new.com</a>, 无论http/https都要跳转至 <a target="_blank" rel="noopener" href="http://www.old.com/">www.old.com</a>. 需求相对较为简单，团队内部开发人员t讨论的实现方式为：</p>
+<ol>
+<li>将 <a target="_blank" rel="noopener" href="https://www.new.com/">https://www.new.com</a> 在 nginx 中 rewrite 至 <a target="_blank" rel="noopener" href="http://www.new.com/">http://www.new.com</a>.</li>
+<li>在 <a target="_blank" rel="noopener" href="http://www.new.com/">http://www.new.com</a> 的虚拟 server 中使用 nginx 的 proxy_pass 代理至 <a target="_blank" rel="noopener" href="http://www.old.com/">http://www.old.com</a>.</li>
+</ol>
+<p>理论上这样便可以实现当前的要求. 测试时发现，<a target="_blank" rel="noopener" href="https://www.new.com/">https://www.new.com</a> 跳转至 <a target="_blank" rel="noopener" href="http://www.old.com/">http://www.old.com</a> 正常，但 <a target="_blank" rel="noopener" href="http://www.new.com/">http://www.new.com</a> 跳入了一个错误的地址, <a target="_blank" rel="noopener" href="https://www.wrong.com/">https://www.wrong.com</a>.<br>实际导致该问题出现有两部分原因：</p>
+<ol>
+<li>开发人员实际设置 <a target="_blank" rel="noopener" href="https://www.new.com/">https://www.new.com</a> 跳转至 <a target="_blank" rel="noopener" href="http://new.com/">http://new.com</a>. 而 new.com 的 nginx 配置与 <a target="_blank" rel="noopener" href="http://www.new.com/">www.new.com</a> 一致，共享同一个 server 块。</li>
+<li>目的地地址 <a target="_blank" rel="noopener" href="http://www.old.com/">www.old.com</a> 识别跳转地址，如果是特定的地址（本项目中为 <a target="_blank" rel="noopener" href="http://www.new.com/">www.new.com</a> ）则跳转入 <a target="_blank" rel="noopener" href="http://www.wrong.com/">www.wrong.com</a>.</li>
+</ol>
+<p>问题不是很复杂，但是每个原因都很偶然，且难以直接分辨, 表现形式也诡异。<a target="_blank" rel="noopener" href="https://www.new.com/">https://www.new.com</a> 跳转正常，<a target="_blank" rel="noopener" href="http://www.new.com/">http://www.new.com</a> 则失败。</p>
+<h2 id="debug"><a href="#debug" class="headerlink" title="debug"></a>debug</h2><p>处理该 bug 时，首要想法是弄清楚每一个跳转行为。三个方案可以实现该目标：</p>
+<ol>
+<li>浏览器开发者工具中查看网络请求</li>
+<li>nginx 可以设置 rewrite_log. 可以在 error_log 的 info 信息中查看跳转行为</li>
+<li>curl 请求模拟<br>因为跳转时301永久重定向，浏览器刷新查看网络请求就显得比较麻烦；而 nginx rewrite_log 则需要在线上服务器中修改配置，请求量过多会导致日志追查困难。curl 是个命令行工具，也无需考虑缓存问题。</li>
+</ol>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">curl -I http://www.new.com</span><br><span class="line"># -I 选项只查看 http head 信息</span><br></pre></td></tr></table></figure>
+<p>仅查看 http head 信息发现，跳转至了一个移动端的地址 m.new.com, 而非原先的错误地址。随后查看 nginx 配置得知，移动端的跳转利用了 user agent, 根据 user agent 判断是否来自移动端，如果是，则进行移动端跳转。curl 请求默认的 user agent 则为 curl, 在移动端跳转规则之内。</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">curl -A PC -I http://www.new.com</span><br><span class="line"># -A 选项指定user agent</span><br></pre></td></tr></table></figure>
+<p>替换 user agent 发现, <a target="_blank" rel="noopener" href="http://www.new.com/">http://www.new.com</a> 跳转至错误地址 <a target="_blank" rel="noopener" href="https://www.wrong.com/">https://www.wrong.com</a>. 问题复现！</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">curl -A PC -I -L http://www.new.com</span><br><span class="line"># -L 选项使 curl 跟随每次跳转请求，这样我们可以观察到所有 rewrite 行为了。</span><br></pre></td></tr></table></figure>
+<p>排除 user agent 问题后，发现跳转行为一如 nginx 配置，<a target="_blank" rel="noopener" href="http://www.new.com/">http://www.new.com</a> 直接跳转至 <a target="_blank" rel="noopener" href="http://wrong.com/">http://wrong.com</a>, 再接着升级为 <a target="_blank" rel="noopener" href="https://wrong.com/">https://wrong.com</a>.</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">curl -A PC -I -L https://www.new.com</span><br><span class="line"># https 的请求追随</span><br></pre></td></tr></table></figure>
+<p>而 https 的请求跳转行为为：<a target="_blank" rel="noopener" href="https://www.new.com/">https://www.new.com</a>, <a target="_blank" rel="noopener" href="https://new.com/">https://new.com</a>, <a target="_blank" rel="noopener" href="http://www.old.com/">http://www.old.com</a>. 跳转成功。对比两个跳转行为，问题1则被发现了。</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">curl -v -A PC -I -L http://www.new.com</span><br><span class="line"># -v 选项指定查看请求详细信息</span><br></pre></td></tr></table></figure>
+<p>在接下来的详细信息中，我们能观察到每次跳转请求的服务器地址。因为 <a target="_blank" rel="noopener" href="http://www.new.com/">http://www.new.com</a> 并非跳转至 <a target="_blank" rel="noopener" href="http://www.old.com/">http://www.old.com</a>, 而是代理（即 proxy_pass ）。无法观察出任何跳转信息，而在服务器响应的 response 中，我们观察到，http header 中有字段 X-Powerd-By: PHP/5.60. 判断出该跳转乃是目标地址的 php 脚本行为。</p>
+
+      
+    </div>
+    <footer class="article-footer">
+      <a data-url="https://muyizixiu.github.io/2018/02/26/curl/" data-id="ckqhxvqg30004phnc94eobvj9" data-title="curl追踪http请求跳转" class="article-share-link">Share</a>
+      
+      
+      
+    </footer>
+  </div>
+  
+    
+<nav id="article-nav">
+  
+    <a href="/2021/06/29/panya/c%E9%A1%9E%E9%A6%96%E9%A0%81/" id="article-nav-newer" class="article-nav-link-wrap">
+      <strong class="article-nav-caption">Newer</strong>
+      <div class="article-nav-title">
+        
+          (no title)
+        
+      </div>
+    </a>
+  
+  
+    <a href="/2018/01/29/mysql-bin-log/" id="article-nav-older" class="article-nav-link-wrap">
+      <strong class="article-nav-caption">Older</strong>
+      <div class="article-nav-title">bin-log备份脚本</div>
+    </a>
+  
+</nav>
+
+  
+</article>
+
+
+</section>
+        
+          <aside id="sidebar">
+  
+    
+  <div class="widget-wrap">
+    <h3 class="widget-title">Categories</h3>
+    <div class="widget">
+      <ul class="category-list"><li class="category-list-item"><a class="category-list-link" href="/categories/%E6%8A%80%E6%9C%AF/">技术</a><ul class="category-list-child"><li class="category-list-item"><a class="category-list-link" href="/categories/%E6%8A%80%E6%9C%AF/mysql/">mysql</a></li><li class="category-list-item"><a class="category-list-link" href="/categories/%E6%8A%80%E6%9C%AF/php/">php</a></li></ul></li></ul>
+    </div>
+  </div>
+
+
+  
+    
+
+  
+    
+  
+    
+  <div class="widget-wrap">
+    <h3 class="widget-title">Archives</h3>
+    <div class="widget">
+      <ul class="archive-list"><li class="archive-list-item"><a class="archive-list-link" href="/archives/2021/06/">June 2021</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2018/02/">February 2018</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2018/01/">January 2018</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2017/03/">March 2017</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2017/02/">February 2017</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2016/10/">October 2016</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2016/08/">August 2016</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2016/06/">June 2016</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2016/04/">April 2016</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2016/01/">January 2016</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2015/12/">December 2015</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2015/10/">October 2015</a></li></ul>
+    </div>
+  </div>
+
+
+  
+    
+  <div class="widget-wrap">
+    <h3 class="widget-title">Recent Posts</h3>
+    <div class="widget">
+      <ul>
+        
+          <li>
+            <a href="/2021/06/29/panya/start_c_1/">(no title)</a>
+          </li>
+        
+          <li>
+            <a href="/2021/06/29/panya/start_g_0/">(no title)</a>
+          </li>
+        
+          <li>
+            <a href="/2021/06/29/panya/%E4%BA%A7%E5%93%81%E4%B8%8E%E6%9C%8D%E5%8A%A1/">(no title)</a>
+          </li>
+        
+          <li>
+            <a href="/2021/06/29/panya/%E5%80%8B%E4%BA%BA%E4%B8%AD%E5%BF%83/">(no title)</a>
+          </li>
+        
+          <li>
+            <a href="/2021/06/29/panya/%E5%84%AA%E6%83%A0%E6%B4%BB%E5%8B%95/">(no title)</a>
+          </li>
+        
+      </ul>
+    </div>
+  </div>
+
+  
+</aside>
+        
+      </div>
+      <footer id="footer">
+  
+  <div class="outer">
+    <div id="footer-info" class="inner">
+      
+      &copy; 2021 John Doe<br>
+      Powered by <a href="https://hexo.io/" target="_blank">Hexo</a>
+    </div>
+  </div>
+</footer>
+
+    </div>
+    <nav id="mobile-nav">
+  
+    <a href="/" class="mobile-nav-link">Home</a>
+  
+    <a href="/archives" class="mobile-nav-link">Archives</a>
+  
+</nav>
+    
+
+
+<script src="/js/jquery-3.4.1.min.js"></script>
+
+
+
+  
+<script src="/fancybox/jquery.fancybox.min.js"></script>
+
+
+
+
+<script src="/js/script.js"></script>
+
+
+
+
+
+  </div>
+</body>
+</html>

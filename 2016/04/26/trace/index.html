@@ -1,0 +1,261 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  
+  
+  <title>strace 和基友 ltrace | Hexo</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+  <meta name="description" content="正如其字面意思一样，trace即追踪。在操作系统里面，进程是一个相对独立的单位，在不知其源代码的情形下，要想知道一个进程在做些什么，这就是strace和ltrace所干的活了。 因为其重要性和其能发挥的力量，我在这里就直接翻译linux中的man文档，以促使其完整和准确。 strace： 追踪系统调用和信号量1.解释在一般的情形下，strace运行指定的命令，直至其结束。一个进程所接收的信号和进行">
+<meta property="og:type" content="article">
+<meta property="og:title" content="strace 和基友 ltrace">
+<meta property="og:url" content="https://muyizixiu.github.io/2016/04/26/trace/index.html">
+<meta property="og:site_name" content="Hexo">
+<meta property="og:description" content="正如其字面意思一样，trace即追踪。在操作系统里面，进程是一个相对独立的单位，在不知其源代码的情形下，要想知道一个进程在做些什么，这就是strace和ltrace所干的活了。 因为其重要性和其能发挥的力量，我在这里就直接翻译linux中的man文档，以促使其完整和准确。 strace： 追踪系统调用和信号量1.解释在一般的情形下，strace运行指定的命令，直至其结束。一个进程所接收的信号和进行">
+<meta property="og:locale" content="en_US">
+<meta property="article:published_time" content="2016-04-26T00:00:00.000Z">
+<meta property="article:modified_time" content="2021-06-29T11:00:50.970Z">
+<meta property="article:author" content="John Doe">
+<meta name="twitter:card" content="summary">
+  
+    <link rel="alternate" href="/atom.xml" title="Hexo" type="application/atom+xml">
+  
+  
+    <link rel="shortcut icon" href="/favicon.png">
+  
+  
+    
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/typeface-source-code-pro@0.0.71/index.min.css">
+
+  
+  
+<link rel="stylesheet" href="/css/style.css">
+
+  
+    
+<link rel="stylesheet" href="/fancybox/jquery.fancybox.min.css">
+
+  
+<meta name="generator" content="Hexo 5.4.0"></head>
+
+<body>
+  <div id="container">
+    <div id="wrap">
+      <header id="header">
+  <div id="banner"></div>
+  <div id="header-outer" class="outer">
+    <div id="header-title" class="inner">
+      <h1 id="logo-wrap">
+        <a href="/" id="logo">Hexo</a>
+      </h1>
+      
+    </div>
+    <div id="header-inner" class="inner">
+      <nav id="main-nav">
+        <a id="main-nav-toggle" class="nav-icon"></a>
+        
+          <a class="main-nav-link" href="/">Home</a>
+        
+          <a class="main-nav-link" href="/archives">Archives</a>
+        
+      </nav>
+      <nav id="sub-nav">
+        
+          <a id="nav-rss-link" class="nav-icon" href="/atom.xml" title="RSS Feed"></a>
+        
+        <a id="nav-search-btn" class="nav-icon" title="Search"></a>
+      </nav>
+      <div id="search-form-wrap">
+        <form action="//google.com/search" method="get" accept-charset="UTF-8" class="search-form"><input type="search" name="q" class="search-form-input" placeholder="Search"><button type="submit" class="search-form-submit">&#xF002;</button><input type="hidden" name="sitesearch" value="https://muyizixiu.github.io"></form>
+      </div>
+    </div>
+  </div>
+</header>
+
+      <div class="outer">
+        <section id="main"><article id="post-trace" class="h-entry article article-type-post" itemprop="blogPost" itemscope itemtype="https://schema.org/BlogPosting">
+  <div class="article-meta">
+    <a href="/2016/04/26/trace/" class="article-date">
+  <time class="dt-published" datetime="2016-04-26T00:00:00.000Z" itemprop="datePublished">2016-04-26</time>
+</a>
+    
+  <div class="article-category">
+    <a class="article-category-link" href="/categories/%E6%8A%80%E6%9C%AF/">技术</a>
+  </div>
+
+  </div>
+  <div class="article-inner">
+    
+    
+      <header class="article-header">
+        
+  
+    <h1 class="p-name article-title" itemprop="headline name">
+      strace 和基友 ltrace
+    </h1>
+  
+
+      </header>
+    
+    <div class="e-content article-entry" itemprop="articleBody">
+      
+        <p>正如其字面意思一样，trace即追踪。在操作系统里面，进程是一个相对独立的单位，在不知其源代码的情形下，要想知道一个进程在做些什么，这就是strace和ltrace所干的活了。</p>
+<p>因为其重要性和其能发挥的力量，我在这里就直接翻译linux中的man文档，以促使其完整和准确。</p>
+<h2 id="strace：-追踪系统调用和信号量"><a href="#strace：-追踪系统调用和信号量" class="headerlink" title="strace： 追踪系统调用和信号量"></a>strace： 追踪系统调用和信号量</h2><p>1.解释<br>在一般的情形下，strace运行指定的命令，直至其结束。一个进程所接收的信号和进行的系统调用将会被strace拦截并记录。每个系统调用的名字，其参数，连同其返回值都将在标准错误中打印出来，如果使用了-o参数的时候，就会写入到指定的文件。</p>
+<p>strace是一个可以用于诊断，学习的调试工具。借由其不需重新编译去追踪程序的特征，系统管理员，调试工程师，debugger在不知道源代码的情形下，也可以发挥它在解决问题上的无限能力。学生们，黑客以及那些过于好奇的家伙们，可以通过追踪那些普通程序来学习很多操作系统的知识。程序员们，同样也将会发现，因为系统调用和信号量都是发生在内核和用户态的交汇处，借此可以有效地隔离bug，做完整性的检查，以及发现死锁的发生。</p>
+<p>追踪打印的每一行都包含了系统调用的名字，以及被括号包围的参数和其返回值。使用cat /dev/null 作为一个例子：</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">open(&quot;/dev/null&quot;,O_RDONLY) = 3</span><br></pre></td></tr></table></figure>
+<p>错误的发生（一般返回值为-1）会有错误符号和错误信息追加在后面。</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">open(&quot;/foo/bar&quot;, O_RDONLY) = -1 ENOENT (No such file or directory)</span><br></pre></td></tr></table></figure>
+<p>信号打印出来的是其信号符号和信号文字。sleep 666的一个启动和终止的例子：</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line">sigsuspend([] &lt;unfinished ...&gt;</span><br><span class="line">--- SIGINT (Interrupt) ---</span><br><span class="line">+++ killed by SIGINT +++</span><br></pre></td></tr></table></figure>
+
+<p>如果一个系统调用发生时，另外的线程或者进程调用了一个系统调用，此时，strace会保存这些事件的顺序并且标记该调用为unfinished，当调用有返回时，再标记为resumed。</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line">[pid 28772] select(4, [3], NULL, NULL, NULL &lt;unfinished ...&gt;</span><br><span class="line">[pid 28779] clock_gettime(CLOCK_REALTIME, &#123;1130322148, 939977000&#125;) = 0</span><br><span class="line">[pid 28772] &lt;... select resumed&gt; )      = 1 (in [3])</span><br></pre></td></tr></table></figure>
+<p>接收到的信号中断一个（可重启的）系统调用与内核中断系统调用并在信号处理完毕之后立即重新执行是不同的</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line">read(0, 0x7ffff72cf5cf, 1)              = ? ERESTARTSYS (To be restarted)</span><br><span class="line">--- SIGALRM (Alarm clock) @ 0 (0) ---</span><br><span class="line">rt_sigreturn(0xe)                       = 0</span><br><span class="line">read(0, &quot;&quot;..., 1)                       = 0</span><br></pre></td></tr></table></figure>
+
+<p>参数以人性化的方式打印出来，一个shell执行&gt;&gt;xyzzy 输出重定向的例子：</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">open(&quot;xyzzy&quot;, O_WRONLY|O_APPEND|O_CREAT, 0666) = 3</span><br></pre></td></tr></table></figure>
+<p>在这里，open函数的3个参数之后的标志参数变成了按位或的形式且打印出了惯用的八进制的形式。在原始形式和惯用形式不同于ANSI或者POSIX标准时，更加偏好使用标准形式。在一些案例中，strace表现出了比源代码更易读的特性。</p>
+<p>结构体指针会被解释，其成员会被以合适的方式打印出来。全部都是以类似于c语言的形式。例如，ls -l /dev/null 的实际执行被追踪如下：</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">lstat(&quot;/dev/null&quot;, &#123;st_mode=S_IFCHR|0666, st_rdev=makedev(1, 3), ...&#125;) = 0</span><br></pre></td></tr></table></figure>
+
+      
+    </div>
+    <footer class="article-footer">
+      <a data-url="https://muyizixiu.github.io/2016/04/26/trace/" data-id="ckqhxvqgl000uphncfzwg2z4v" data-title="strace 和基友 ltrace" class="article-share-link">Share</a>
+      
+      
+      
+    </footer>
+  </div>
+  
+    
+<nav id="article-nav">
+  
+    <a href="/2016/06/20/encoding/" id="article-nav-newer" class="article-nav-link-wrap">
+      <strong class="article-nav-caption">Newer</strong>
+      <div class="article-nav-title">
+        
+          unicode utf-8 and encoding
+        
+      </div>
+    </a>
+  
+  
+    <a href="/2016/01/20/golang-channel/" id="article-nav-older" class="article-nav-link-wrap">
+      <strong class="article-nav-caption">Older</strong>
+      <div class="article-nav-title">channel!channel!</div>
+    </a>
+  
+</nav>
+
+  
+</article>
+
+
+</section>
+        
+          <aside id="sidebar">
+  
+    
+  <div class="widget-wrap">
+    <h3 class="widget-title">Categories</h3>
+    <div class="widget">
+      <ul class="category-list"><li class="category-list-item"><a class="category-list-link" href="/categories/%E6%8A%80%E6%9C%AF/">技术</a><ul class="category-list-child"><li class="category-list-item"><a class="category-list-link" href="/categories/%E6%8A%80%E6%9C%AF/mysql/">mysql</a></li><li class="category-list-item"><a class="category-list-link" href="/categories/%E6%8A%80%E6%9C%AF/php/">php</a></li></ul></li></ul>
+    </div>
+  </div>
+
+
+  
+    
+
+  
+    
+  
+    
+  <div class="widget-wrap">
+    <h3 class="widget-title">Archives</h3>
+    <div class="widget">
+      <ul class="archive-list"><li class="archive-list-item"><a class="archive-list-link" href="/archives/2021/06/">June 2021</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2018/02/">February 2018</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2018/01/">January 2018</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2017/03/">March 2017</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2017/02/">February 2017</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2016/10/">October 2016</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2016/08/">August 2016</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2016/06/">June 2016</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2016/04/">April 2016</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2016/01/">January 2016</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2015/12/">December 2015</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2015/10/">October 2015</a></li></ul>
+    </div>
+  </div>
+
+
+  
+    
+  <div class="widget-wrap">
+    <h3 class="widget-title">Recent Posts</h3>
+    <div class="widget">
+      <ul>
+        
+          <li>
+            <a href="/2021/06/29/panya/start_c_1/">(no title)</a>
+          </li>
+        
+          <li>
+            <a href="/2021/06/29/panya/start_g_0/">(no title)</a>
+          </li>
+        
+          <li>
+            <a href="/2021/06/29/panya/%E4%BA%A7%E5%93%81%E4%B8%8E%E6%9C%8D%E5%8A%A1/">(no title)</a>
+          </li>
+        
+          <li>
+            <a href="/2021/06/29/panya/%E5%80%8B%E4%BA%BA%E4%B8%AD%E5%BF%83/">(no title)</a>
+          </li>
+        
+          <li>
+            <a href="/2021/06/29/panya/%E5%84%AA%E6%83%A0%E6%B4%BB%E5%8B%95/">(no title)</a>
+          </li>
+        
+      </ul>
+    </div>
+  </div>
+
+  
+</aside>
+        
+      </div>
+      <footer id="footer">
+  
+  <div class="outer">
+    <div id="footer-info" class="inner">
+      
+      &copy; 2021 John Doe<br>
+      Powered by <a href="https://hexo.io/" target="_blank">Hexo</a>
+    </div>
+  </div>
+</footer>
+
+    </div>
+    <nav id="mobile-nav">
+  
+    <a href="/" class="mobile-nav-link">Home</a>
+  
+    <a href="/archives" class="mobile-nav-link">Archives</a>
+  
+</nav>
+    
+
+
+<script src="/js/jquery-3.4.1.min.js"></script>
+
+
+
+  
+<script src="/fancybox/jquery.fancybox.min.js"></script>
+
+
+
+
+<script src="/js/script.js"></script>
+
+
+
+
+
+  </div>
+</body>
+</html>

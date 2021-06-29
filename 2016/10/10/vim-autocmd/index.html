@@ -1,0 +1,257 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  
+  
+  <title>vimrc之autocmd | Hexo</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+  <meta name="description" content="有句话说得好，如果EMACS是神的编辑器，那么vim就是编辑器之神了！vim和emacs极佳的扩展性，以及众多活跃的插件，是经常切换多语言编程的利器。那么，vimrc是vimer进阶不得不掌握的战场了！ vimrc是vim的配置文件， 强大如编程语言一般！ autocmdautocmd是用于注册vim事件的处理方法，可以用于在特定事件（读，写，新建文本等）下触发特定的动作。autocmd的定义 1">
+<meta property="og:type" content="article">
+<meta property="og:title" content="vimrc之autocmd">
+<meta property="og:url" content="https://muyizixiu.github.io/2016/10/10/vim-autocmd/index.html">
+<meta property="og:site_name" content="Hexo">
+<meta property="og:description" content="有句话说得好，如果EMACS是神的编辑器，那么vim就是编辑器之神了！vim和emacs极佳的扩展性，以及众多活跃的插件，是经常切换多语言编程的利器。那么，vimrc是vimer进阶不得不掌握的战场了！ vimrc是vim的配置文件， 强大如编程语言一般！ autocmdautocmd是用于注册vim事件的处理方法，可以用于在特定事件（读，写，新建文本等）下触发特定的动作。autocmd的定义 1">
+<meta property="og:locale" content="en_US">
+<meta property="article:published_time" content="2016-10-10T00:00:00.000Z">
+<meta property="article:modified_time" content="2021-06-29T11:00:50.970Z">
+<meta property="article:author" content="John Doe">
+<meta name="twitter:card" content="summary">
+  
+    <link rel="alternate" href="/atom.xml" title="Hexo" type="application/atom+xml">
+  
+  
+    <link rel="shortcut icon" href="/favicon.png">
+  
+  
+    
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/typeface-source-code-pro@0.0.71/index.min.css">
+
+  
+  
+<link rel="stylesheet" href="/css/style.css">
+
+  
+    
+<link rel="stylesheet" href="/fancybox/jquery.fancybox.min.css">
+
+  
+<meta name="generator" content="Hexo 5.4.0"></head>
+
+<body>
+  <div id="container">
+    <div id="wrap">
+      <header id="header">
+  <div id="banner"></div>
+  <div id="header-outer" class="outer">
+    <div id="header-title" class="inner">
+      <h1 id="logo-wrap">
+        <a href="/" id="logo">Hexo</a>
+      </h1>
+      
+    </div>
+    <div id="header-inner" class="inner">
+      <nav id="main-nav">
+        <a id="main-nav-toggle" class="nav-icon"></a>
+        
+          <a class="main-nav-link" href="/">Home</a>
+        
+          <a class="main-nav-link" href="/archives">Archives</a>
+        
+      </nav>
+      <nav id="sub-nav">
+        
+          <a id="nav-rss-link" class="nav-icon" href="/atom.xml" title="RSS Feed"></a>
+        
+        <a id="nav-search-btn" class="nav-icon" title="Search"></a>
+      </nav>
+      <div id="search-form-wrap">
+        <form action="//google.com/search" method="get" accept-charset="UTF-8" class="search-form"><input type="search" name="q" class="search-form-input" placeholder="Search"><button type="submit" class="search-form-submit">&#xF002;</button><input type="hidden" name="sitesearch" value="https://muyizixiu.github.io"></form>
+      </div>
+    </div>
+  </div>
+</header>
+
+      <div class="outer">
+        <section id="main"><article id="post-vim-autocmd" class="h-entry article article-type-post" itemprop="blogPost" itemscope itemtype="https://schema.org/BlogPosting">
+  <div class="article-meta">
+    <a href="/2016/10/10/vim-autocmd/" class="article-date">
+  <time class="dt-published" datetime="2016-10-10T00:00:00.000Z" itemprop="datePublished">2016-10-10</time>
+</a>
+    
+  <div class="article-category">
+    <a class="article-category-link" href="/categories/%E6%8A%80%E6%9C%AF/">技术</a>
+  </div>
+
+  </div>
+  <div class="article-inner">
+    
+    
+      <header class="article-header">
+        
+  
+    <h1 class="p-name article-title" itemprop="headline name">
+      vimrc之autocmd
+    </h1>
+  
+
+      </header>
+    
+    <div class="e-content article-entry" itemprop="articleBody">
+      
+        <p>有句话说得好，如果EMACS是神的编辑器，那么vim就是编辑器之神了！vim和emacs极佳的扩展性，以及众多活跃的插件，是经常切换多语言编程的利器。那么，vimrc是vimer进阶不得不掌握的战场了！</p>
+<p>vimrc是vim的配置文件， 强大如编程语言一般！</p>
+<h2 id="autocmd"><a href="#autocmd" class="headerlink" title="autocmd"></a>autocmd</h2><p>autocmd是用于注册vim事件的处理方法，可以用于在特定事件（读，写，新建文本等）下触发特定的动作。<br>autocmd的定义</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">:au[tocmd] [group] &#123;event&#125; &#123;pat&#125; [nested] &#123;cmd&#125;</span><br></pre></td></tr></table></figure>
+<p>关键字au[tocmd]是少不了的，{group}是组名称，用于将当前所定义的注册命令归属于一个组，缺省的话默认是当前组，当前组可以用:augroup查看。event是指事件：</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br><span class="line">58</span><br><span class="line">59</span><br><span class="line">60</span><br><span class="line">61</span><br><span class="line">62</span><br><span class="line">63</span><br><span class="line">64</span><br><span class="line">65</span><br><span class="line">66</span><br><span class="line">67</span><br><span class="line">68</span><br><span class="line">69</span><br><span class="line">70</span><br><span class="line">71</span><br><span class="line">72</span><br><span class="line">73</span><br><span class="line">74</span><br><span class="line">75</span><br><span class="line">76</span><br><span class="line">77</span><br><span class="line">78</span><br><span class="line">79</span><br><span class="line">80</span><br><span class="line">81</span><br><span class="line">82</span><br><span class="line">83</span><br><span class="line">84</span><br><span class="line">85</span><br><span class="line">86</span><br><span class="line">87</span><br><span class="line">88</span><br><span class="line">89</span><br><span class="line">90</span><br><span class="line">91</span><br><span class="line">92</span><br><span class="line">93</span><br><span class="line">94</span><br><span class="line">95</span><br><span class="line">96</span><br><span class="line">97</span><br><span class="line">98</span><br><span class="line">99</span><br><span class="line">100</span><br><span class="line">101</span><br><span class="line">102</span><br><span class="line">103</span><br><span class="line">104</span><br><span class="line">105</span><br><span class="line">106</span><br><span class="line">107</span><br><span class="line">108</span><br><span class="line">109</span><br><span class="line">110</span><br><span class="line">111</span><br><span class="line">112</span><br><span class="line">113</span><br><span class="line">114</span><br><span class="line">115</span><br><span class="line">116</span><br><span class="line">117</span><br><span class="line">118</span><br><span class="line">119</span><br></pre></td><td class="code"><pre><span class="line">名字                    激活条件 </span><br><span class="line"></span><br><span class="line">        读入</span><br><span class="line">|BufNewFile|            开始编辑尚不存在的文件</span><br><span class="line">|BufReadPre|            开始编辑新缓冲区，读入文件前</span><br><span class="line">|BufRead|               开始编辑新缓冲区，读入文件后</span><br><span class="line">|BufReadPost|           开始编辑新缓冲区，读入文件后</span><br><span class="line">|BufReadCmd|            开始编辑新缓冲区前 |Cmd-event|</span><br><span class="line"></span><br><span class="line">|FileReadPre|           用 &quot;:read&quot; 命令读入文件前</span><br><span class="line">|FileReadPost|          用 &quot;:read&quot; 命令读入文件后</span><br><span class="line">|FileReadCmd|           用 &quot;:read&quot; 命令读入文件前 |Cmd-event|</span><br><span class="line"></span><br><span class="line">|FilterReadPre|         用过滤命令读入文件前</span><br><span class="line">|FilterReadPost|        用过滤命令读入文件后</span><br><span class="line"></span><br><span class="line">|StdinReadPre|          从标准输入读入缓冲区前</span><br><span class="line">|StdinReadPost|         从标准输入读入缓冲区后</span><br><span class="line"></span><br><span class="line">        写回</span><br><span class="line">|BufWrite|              开始把整个缓冲区写回到文件</span><br><span class="line">|BufWritePre|           开始把整个缓冲区写回到文件</span><br><span class="line">|BufWritePost|          把整个缓冲区写回到文件后</span><br><span class="line">|BufWriteCmd|           把整个缓冲区写回到文件前 |Cmd-event|</span><br><span class="line"></span><br><span class="line">|FileWritePre|          开始把缓冲区部分内容写回到文件</span><br><span class="line">|FileWritePost|         把缓冲区部分内容写回到文件后</span><br><span class="line">|FileWriteCmd|          把缓冲区部分内容写回到文件前 |Cmd-event|</span><br><span class="line"></span><br><span class="line">|FileAppendPre|         开始附加到文件</span><br><span class="line">|FileAppendPost|        附加到文件后</span><br><span class="line">|FileAppendCmd|         附加到文件前 |Cmd-event|</span><br><span class="line"></span><br><span class="line">|FilterWritePre|        开始为过滤命令或 diff 写到文件</span><br><span class="line">|FilterWritePost|       为过滤命令或 diff 写到文件后</span><br><span class="line"></span><br><span class="line">        缓冲区</span><br><span class="line">|BufAdd|                刚把缓冲区附加到缓冲区列表后</span><br><span class="line">|BufCreate|             刚把缓冲区附加到缓冲区列表后</span><br><span class="line">|BufDelete|             从缓冲区列表删除缓冲区前</span><br><span class="line">|BufWipeout|            从缓冲区列表完全删除缓冲区前</span><br><span class="line"></span><br><span class="line">|BufFilePre|            改变当前缓冲区名字前</span><br><span class="line">|BufFilePost|           改变当前缓冲区名字后</span><br><span class="line"></span><br><span class="line">|BufEnter|              进入缓冲区后</span><br><span class="line">|BufLeave|              转到其它缓冲区前</span><br><span class="line">|BufWinEnter|           在窗口显示缓冲区前</span><br><span class="line">|BufWinLeave|           从窗口删除缓冲区前</span><br><span class="line"></span><br><span class="line">|BufUnload|             卸载缓冲区前</span><br><span class="line">|BufHidden|             刚把缓冲区变为隐藏后</span><br><span class="line">|BufNew|                刚建立新缓冲区后</span><br><span class="line"></span><br><span class="line">|SwapExists|            检测到交换文件已经存在</span><br><span class="line"></span><br><span class="line">        选项</span><br><span class="line">|FileType|              设置 &#x27;filetype&#x27; 选项时</span><br><span class="line">|Syntax|                设置 &#x27;syntax&#x27; 选项时</span><br><span class="line">|EncodingChanged|       &#x27;encoding&#x27; 选项改变后</span><br><span class="line">|TermChanged|           &#x27;term&#x27; 的值改变后</span><br><span class="line"></span><br><span class="line">        启动和退出</span><br><span class="line">|VimEnter|              完成所有的初始化步骤后</span><br><span class="line">|GUIEnter|              成功启动 GUI 后</span><br><span class="line">|GUIFailed|             启动 GUI 失败之后</span><br><span class="line">|TermResponse|          收到 |t_RV| 的终端应答后</span><br><span class="line"></span><br><span class="line">|QuitPre|               用 `:quit` 时，决定是否退出之前</span><br><span class="line">|VimLeavePre|           退出 Vim 前，在写入 viminfo 文件之前</span><br><span class="line">|VimLeave|              退出 Vim 前，在写入 viminfo 文件之后</span><br><span class="line"></span><br><span class="line">        杂项</span><br><span class="line">|FileChangedShell|      Vim 注意到文件在编辑开始后被改变</span><br><span class="line">|FileChangedShellPost|  对在编辑开始后被改变的文件的处理完成后</span><br><span class="line">|FileChangedRO|         对只读文件进行第一次修改前</span><br><span class="line"></span><br><span class="line">|ShellCmdPost|          执行外壳命令后</span><br><span class="line">|ShellFilterPost|       用外壳命令执行完过滤后</span><br><span class="line"></span><br><span class="line">|FuncUndefined|         调用没有定义的用户函数</span><br><span class="line">|SpellFileMissing|      使用不存在的拼写文件</span><br><span class="line">|SourcePre|             执行 Vim 脚本之前</span><br><span class="line">|SourceCmd|             执行 Vim 脚本之前 |Cmd-event|</span><br><span class="line"></span><br><span class="line">|VimResized|            Vim 窗口大小改变后</span><br><span class="line">|FocusGained|           Vim 得到输入焦点</span><br><span class="line">|FocusLost|             Vim 失去输入焦点</span><br><span class="line">|CursorHold|            用户有一段时间没有按键</span><br><span class="line">|CursorHoldI|           在插入模式下，用户有一段时间没有按键</span><br><span class="line">|CursorMoved|           普通模式下移动了光标</span><br><span class="line">|CursorMovedI|          插入模式下移动了光标</span><br><span class="line"></span><br><span class="line">|WinEnter|              进入其它窗口后</span><br><span class="line">|WinLeave|              离开窗口前</span><br><span class="line">|TabEnter|              进入其它标签页后</span><br><span class="line">|TabLeave|              离开标签页前</span><br><span class="line">|CmdwinEnter|           进入命令行窗口后</span><br><span class="line">|CmdwinLeave|           离开命令行窗口前</span><br><span class="line"></span><br><span class="line">|InsertEnter|           开始插入模式前</span><br><span class="line">|InsertChange|          在插入或替换模式下输入 &lt;Insert&gt; 时</span><br><span class="line">|InsertLeave|           离开插入模式时</span><br><span class="line">|InsertCharPre|         插入模式输入每个字符前</span><br><span class="line"></span><br><span class="line">|ColorScheme|           载入色彩方案后</span><br><span class="line"></span><br><span class="line">|RemoteReply|           得到了 Vim 服务器的应答</span><br><span class="line"></span><br><span class="line">|QuickFixCmdPre|        执行 quickfix 命令前</span><br><span class="line">|QuickFixCmdPost|       执行 quickfix 命令后</span><br><span class="line"></span><br><span class="line">|SessionLoadPost|       载入会话文件后</span><br><span class="line"></span><br><span class="line">|MenuPopup|             刚要显示弹出菜单前</span><br><span class="line">|CompleteDone|          插入模式补全结束之后</span><br><span class="line"></span><br><span class="line">|User|                  和 &quot;:doautocmd&quot; 一起使用</span><br><span class="line"></span><br></pre></td></tr></table></figure>
+
+<p>引用自<a target="_blank" rel="noopener" href="http://vimcdoc.sourceforge.net/doc/autocmd.html#autocmd-events">VIMCDOC</a>。</p>
+<p>模式匹配则是对当前文本类型的一种匹配，支持通配符，eg: *.php匹配php文本。<br>{nested}则是指明可以嵌套事件，当所处理的动作也被注册为事件触发另一动作时，默认不触发。</p>
+<p>{cmd}就是我们在vim命令模式下面经常使用的了，复杂的动作可以使用函数来处理。</p>
+<p>##Example<br>在我的vimrc脚本中，利用了autocmd在保存的时候对php文件进行语法检查。</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">au BufWrite *.php call phpSyntaxCheck()</span><br></pre></td></tr></table></figure>
+<p>这里的phpSyntaxCheck是自定义的vim函数，call phpSyntaxCheck()调用这个函数，函数里面调用外部的php -l 检查文件，匹配到错误则输出</p>
+<p>另外一个给我带来很大便利的是，新建文件的时候，加入一些定制的头部。</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line">au BufNewFile *.php call InsertPHPHeader()</span><br><span class="line"></span><br><span class="line">func InsertPHPHeader()</span><br><span class="line">	call append(0,&quot;&lt;?php&quot;)</span><br><span class="line">endf</span><br></pre></td></tr></table></figure>
+
+<p>这是一个简单的例子，定义了一个函数，插入php文件的头部一些字符串。</p>
+
+      
+    </div>
+    <footer class="article-footer">
+      <a data-url="https://muyizixiu.github.io/2016/10/10/vim-autocmd/" data-id="ckqhxvqgn000xphncf4dg96up" data-title="vimrc之autocmd" class="article-share-link">Share</a>
+      
+      
+      
+    </footer>
+  </div>
+  
+    
+<nav id="article-nav">
+  
+    <a href="/2016/10/11/linux-sar/" id="article-nav-newer" class="article-nav-link-wrap">
+      <strong class="article-nav-caption">Newer</strong>
+      <div class="article-nav-title">
+        
+          Linux之sar
+        
+      </div>
+    </a>
+  
+  
+    <a href="/2016/08/26/php-string-error/" id="article-nav-older" class="article-nav-link-wrap">
+      <strong class="article-nav-caption">Older</strong>
+      <div class="article-nav-title">PHP 字符异常</div>
+    </a>
+  
+</nav>
+
+  
+</article>
+
+
+</section>
+        
+          <aside id="sidebar">
+  
+    
+  <div class="widget-wrap">
+    <h3 class="widget-title">Categories</h3>
+    <div class="widget">
+      <ul class="category-list"><li class="category-list-item"><a class="category-list-link" href="/categories/%E6%8A%80%E6%9C%AF/">技术</a><ul class="category-list-child"><li class="category-list-item"><a class="category-list-link" href="/categories/%E6%8A%80%E6%9C%AF/mysql/">mysql</a></li><li class="category-list-item"><a class="category-list-link" href="/categories/%E6%8A%80%E6%9C%AF/php/">php</a></li></ul></li></ul>
+    </div>
+  </div>
+
+
+  
+    
+
+  
+    
+  
+    
+  <div class="widget-wrap">
+    <h3 class="widget-title">Archives</h3>
+    <div class="widget">
+      <ul class="archive-list"><li class="archive-list-item"><a class="archive-list-link" href="/archives/2021/06/">June 2021</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2018/02/">February 2018</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2018/01/">January 2018</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2017/03/">March 2017</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2017/02/">February 2017</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2016/10/">October 2016</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2016/08/">August 2016</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2016/06/">June 2016</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2016/04/">April 2016</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2016/01/">January 2016</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2015/12/">December 2015</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2015/10/">October 2015</a></li></ul>
+    </div>
+  </div>
+
+
+  
+    
+  <div class="widget-wrap">
+    <h3 class="widget-title">Recent Posts</h3>
+    <div class="widget">
+      <ul>
+        
+          <li>
+            <a href="/2021/06/29/panya/start_c_1/">(no title)</a>
+          </li>
+        
+          <li>
+            <a href="/2021/06/29/panya/start_g_0/">(no title)</a>
+          </li>
+        
+          <li>
+            <a href="/2021/06/29/panya/%E4%BA%A7%E5%93%81%E4%B8%8E%E6%9C%8D%E5%8A%A1/">(no title)</a>
+          </li>
+        
+          <li>
+            <a href="/2021/06/29/panya/%E5%80%8B%E4%BA%BA%E4%B8%AD%E5%BF%83/">(no title)</a>
+          </li>
+        
+          <li>
+            <a href="/2021/06/29/panya/%E5%84%AA%E6%83%A0%E6%B4%BB%E5%8B%95/">(no title)</a>
+          </li>
+        
+      </ul>
+    </div>
+  </div>
+
+  
+</aside>
+        
+      </div>
+      <footer id="footer">
+  
+  <div class="outer">
+    <div id="footer-info" class="inner">
+      
+      &copy; 2021 John Doe<br>
+      Powered by <a href="https://hexo.io/" target="_blank">Hexo</a>
+    </div>
+  </div>
+</footer>
+
+    </div>
+    <nav id="mobile-nav">
+  
+    <a href="/" class="mobile-nav-link">Home</a>
+  
+    <a href="/archives" class="mobile-nav-link">Archives</a>
+  
+</nav>
+    
+
+
+<script src="/js/jquery-3.4.1.min.js"></script>
+
+
+
+  
+<script src="/fancybox/jquery.fancybox.min.js"></script>
+
+
+
+
+<script src="/js/script.js"></script>
+
+
+
+
+
+  </div>
+</body>
+</html>

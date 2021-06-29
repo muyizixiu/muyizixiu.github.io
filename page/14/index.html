@@ -1,0 +1,831 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  
+  
+  <title>Hexo</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+  <meta property="og:type" content="website">
+<meta property="og:title" content="Hexo">
+<meta property="og:url" content="https://muyizixiu.github.io/page/14/index.html">
+<meta property="og:site_name" content="Hexo">
+<meta property="og:locale" content="en_US">
+<meta property="article:author" content="John Doe">
+<meta name="twitter:card" content="summary">
+  
+    <link rel="alternate" href="/atom.xml" title="Hexo" type="application/atom+xml">
+  
+  
+    <link rel="shortcut icon" href="/favicon.png">
+  
+  
+    
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/typeface-source-code-pro@0.0.71/index.min.css">
+
+  
+  
+<link rel="stylesheet" href="/css/style.css">
+
+  
+    
+<link rel="stylesheet" href="/fancybox/jquery.fancybox.min.css">
+
+  
+<meta name="generator" content="Hexo 5.4.0"></head>
+
+<body>
+  <div id="container">
+    <div id="wrap">
+      <header id="header">
+  <div id="banner"></div>
+  <div id="header-outer" class="outer">
+    <div id="header-title" class="inner">
+      <h1 id="logo-wrap">
+        <a href="/" id="logo">Hexo</a>
+      </h1>
+      
+    </div>
+    <div id="header-inner" class="inner">
+      <nav id="main-nav">
+        <a id="main-nav-toggle" class="nav-icon"></a>
+        
+          <a class="main-nav-link" href="/">Home</a>
+        
+          <a class="main-nav-link" href="/archives">Archives</a>
+        
+      </nav>
+      <nav id="sub-nav">
+        
+          <a id="nav-rss-link" class="nav-icon" href="/atom.xml" title="RSS Feed"></a>
+        
+        <a id="nav-search-btn" class="nav-icon" title="Search"></a>
+      </nav>
+      <div id="search-form-wrap">
+        <form action="//google.com/search" method="get" accept-charset="UTF-8" class="search-form"><input type="search" name="q" class="search-form-input" placeholder="Search"><button type="submit" class="search-form-submit">&#xF002;</button><input type="hidden" name="sitesearch" value="https://muyizixiu.github.io"></form>
+      </div>
+    </div>
+  </div>
+</header>
+
+      <div class="outer">
+        <section id="main">
+  
+    <article id="post-golang-share-lib" class="h-entry article article-type-post" itemprop="blogPost" itemscope itemtype="https://schema.org/BlogPosting">
+  <div class="article-meta">
+    <a href="/2016/01/20/golang-share-lib/" class="article-date">
+  <time class="dt-published" datetime="2016-01-20T00:00:00.000Z" itemprop="datePublished">2016-01-20</time>
+</a>
+    
+  <div class="article-category">
+    <a class="article-category-link" href="/categories/%E6%8A%80%E6%9C%AF/">技术</a>
+  </div>
+
+  </div>
+  <div class="article-inner">
+    
+    
+      <header class="article-header">
+        
+  
+    <h1 itemprop="name">
+      <a class="p-name article-title" href="/2016/01/20/golang-share-lib/">golang共享库</a>
+    </h1>
+  
+
+      </header>
+    
+    <div class="e-content article-entry" itemprop="articleBody">
+      
+        <p>包的形式去管理代码可以使代码结构更加清晰。java，python等等语言采用了了这种方式，golang是用来关键字package和import，也是包级别的代码管理。然而，在程序上也有种管理方式，大名鼎鼎的有so和dll，可以从源码上编译成程序来被其余程序调用。一般情况下我们称为library，也叫共享库。golang从1.5的版本以后即支持共享库了。</p>
+<p>编译选项：–buildmode=value</p>
+<p>value值有：</p>
+<ol>
+<li><strong>shared</strong> 这是golang提供给自身调用的共享库。</li>
+<li><strong>c-shared</strong> 用来生成c的共享库，这是极具诱惑力的，意味着golang可以写给其余语言调用的库了，例如python里面的<a target="_blank" rel="noopener" href="https://blog.filippo.io/building-python-modules-with-go-1-5/">module</a>,甚至php的扩展也可以由golang来实现了。</li>
+</ol>
+<h3 id="talk-is-cheap"><a href="#talk-is-cheap" class="headerlink" title="talk is cheap"></a>talk is cheap</h3><p>我当前目录下有：</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line">|_test</span><br><span class="line">|      |_test.go</span><br><span class="line">|_main.go</span><br></pre></td></tr></table></figure>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br></pre></td><td class="code"><pre><span class="line">$cat test/test.go</span><br><span class="line">package test</span><br><span class="line">func Test()&#123;</span><br><span class="line">    println(&quot;hello world&quot;)</span><br><span class="line">&#125;</span><br><span class="line">$cat main.go</span><br><span class="line">package main</span><br><span class="line">import &quot;test&quot;</span><br><span class="line">func main()&#123;</span><br><span class="line">    test.Test()</span><br><span class="line">&#125;</span><br><span class="line">$go install --buildmode=shared -linkshared test    #安装test包做为golang的共享库</span><br><span class="line">$go build -linkshared main.go                      #用了共享的地方，记得打上-linkshared的标记</span><br><span class="line">$./main</span><br><span class="line">hello world</span><br></pre></td></tr></table></figure>
+<p>当你改变了test里面的代码重新安装下这个共享库，不需要去重新编译main程序，只需要重启main程序即可生效。遗憾的是，目前golang官方不支持动态加载共享库，不然，热更新可以很容易实现了。</p>
+<p>另外，有意思的一点是，即使你在更改完共享库之后，不重启main程序，而是另外启动main程序，俩个程序运行的结果是不同的。</p>
+<p>在安装共享库的时候，有一个<a target="_blank" rel="noopener" href="https://github.com/golang/go/issues/12236">bug</a>要注意下,目前golang编译时，需要明确指定库文件。</p>
+
+      
+    </div>
+    <footer class="article-footer">
+      <a data-url="https://muyizixiu.github.io/2016/01/20/golang-share-lib/" data-id="ckqhxvqgc000dphnc9hgocgyq" data-title="golang共享库" class="article-share-link">Share</a>
+      
+      
+      
+    </footer>
+  </div>
+  
+</article>
+
+
+
+  
+    <article id="post-LinuxCommand" class="h-entry article article-type-post" itemprop="blogPost" itemscope itemtype="https://schema.org/BlogPosting">
+  <div class="article-meta">
+    <a href="/2015/12/15/LinuxCommand/" class="article-date">
+  <time class="dt-published" datetime="2015-12-15T00:00:00.000Z" itemprop="datePublished">2015-12-15</time>
+</a>
+    
+  <div class="article-category">
+    <a class="article-category-link" href="/categories/%E6%8A%80%E6%9C%AF/">技术</a>
+  </div>
+
+  </div>
+  <div class="article-inner">
+    
+    
+      <header class="article-header">
+        
+  
+    <h1 itemprop="name">
+      <a class="p-name article-title" href="/2015/12/15/LinuxCommand/">Linux niubility 命令集</a>
+    </h1>
+  
+
+      </header>
+    
+    <div class="e-content article-entry" itemprop="articleBody">
+      
+        <p>对于绝大多数应用程序，系统调用（syscall）是被封装隐藏好了的，但大多数函数操作都有涉及的。文件读写，io操作，网络请求等等属于操作系统调度的操作都跟操作系统密切相关，所以对于程序（尤其是一定规模的程序），其性能，状态的分析，不仅仅是从代码层面上进行分析，也要注重在操作系统层面上进行分析。linux系统提供的很多命令，在这一方面，是极其厉害的。</p>
+<h3 id="一-lsof-（list-open-files）"><a href="#一-lsof-（list-open-files）" class="headerlink" title="一. lsof （list open files）"></a>一. lsof （list open files）</h3><figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br></pre></td><td class="code"><pre><span class="line">Useage：</span><br><span class="line"></span><br><span class="line">    无选项时，lsof列出所有打开文件</span><br><span class="line">    -a : 与逻辑</span><br><span class="line">    -c : 指定进程</span><br><span class="line">    -l : 显示用户ID</span><br><span class="line">    -h : 帮助</span><br><span class="line">    -t : 仅获取进程ID</span><br><span class="line">    -U : UNIX套接口地址</span><br><span class="line">    -i : 进行正则匹配</span><br></pre></td></tr></table></figure>
+<p> 其余的简单就可以探索明白，其中a和i参数解释一下</p>
+<ol>
+<li><strong>-a</strong> : 进行与逻辑操作，lsof命令可以有多个参数，在多个参数指定的条件下，默认所有条件是或逻辑操作的，在参数-a存在的情形下就变成了与逻辑</li>
+<li><strong>-i</strong> : niubility就在这里出现了。lsof -i[46] [protocol][@hostname|hostaddr][:service|port]使用格式虽然有点长，对于网络连接的把控也体现出来了。比如说：</li>
+</ol>
+<ul>
+<li>查看某一端口：lsof -i :22</li>
+<li>查看某一ip建立的连接：lsof -i @localhost</li>
+</ul>
+<p>-i参数指定正则匹配，比起用管道|加grep匹配，这一参数还有更加明确的匹配格式，冒号加端口（:port），或者@符号加网络地址,都能进行更加明确的匹配。</p>
+<p>linux中一切皆文件（宛如js中一切皆对象），lsof 命令在linux中就不仅仅局限于文件了，可以用于分析网络端口（忘掉netstat命令吧），ip连接，文件读写等操作</p>
+<h3 id="二-tcpdump"><a href="#二-tcpdump" class="headerlink" title="二. tcpdump"></a>二. tcpdump</h3><p>抓包素来很酷，极具Geek范，在linux命令行下也有niubility的抓包命令：tcpdump</p>
+<p>tcpdump在网络上抓取数据，数据量大也可以保存下来，通过分析工具，例如wireshark，来分析数据。</p>
+<p>tcpdump的命令本身其实很简单，网路上有很多资料，这篇<a target="_blank" rel="noopener" href="http://bbs.chinaunix.net/thread-2222434-1-1.html">博客</a>内容较为齐全。</p>
+<p>tcpdump 重要的几个关键字和参数：</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line"></span><br><span class="line">指定网络参数：net（网络域），port（指定端口），host（指定主机，可以是主机名，也可以是ip地址）</span><br><span class="line"></span><br><span class="line">指定网络流方向:dst(去向),src（来源）</span><br><span class="line"></span><br><span class="line">指定网卡：-i</span><br></pre></td></tr></table></figure>
+
+<p>具体用法如下：</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><span class="line"></span><br><span class="line">\# tcpdump host localhost  </span><br><span class="line">这是指定为本机回环地址的情形，在没有指定网卡（无参数-i）的情形下，自动指定为第一块网卡，在这里，如果回环地址不是第一块网卡，是不会有数据的。</span><br><span class="line">\# tcpdump dst localhost -i lo</span><br><span class="line">抓取所有流向本机回环地址的数据，且指定网卡为回环地址的网卡，（lo是网卡名称，可用ifconfig命令查看）</span><br><span class="line">\# tcpdump host localhost or dst 192.168.1.1</span><br><span class="line">and 和or 的与或逻辑是支持的</span><br></pre></td></tr></table></figure>
+
+<h3 id="三-expect"><a href="#三-expect" class="headerlink" title="三. expect"></a>三. expect</h3><p>还在为命令行交互而烦恼吗，还在讨厌密码太长不想输入吗？</p>
+<p>expect是可以处理命令行交互的命令，命令行下的一些输入，比如输入密码，是需要交互的输入，无法直接通过输入输出重定向来实现，这个时候使用expect命令就是切合了。</p>
+<p>expect本身就像一个伪shell一样，所以能够提供交互功能。</p>
+<p>简单的脚本示范</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line"># !/usr/bin/expect</span><br><span class="line">spawn echo &quot;hello world&quot;</span><br><span class="line">interact</span><br></pre></td></tr></table></figure>
+<p>输出为：</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">spawn echo &quot;hello world&quot;</span><br><span class="line">hello world</span><br></pre></td></tr></table></figure>
+<p>spawn 一般是启动命令，后面跟着要执行的命令，spawn会启动这个命令进程，然后与其交互。第一行的显示表示启动的命令，是对应的脚本行的原样显示。</p>
+<p>interact关键字是指：将交互还给shell。<br>还有另外一个关键字：exit，退出脚本执行。</p>
+<p>expect 重要的交互命令</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line"># !/usr/bin/expect</span><br><span class="line">spawn passwd root # 执行更改密码的命令</span><br><span class="line">expect &quot;password&quot; # expect 接收进程中的输出，匹配到&#x27;password&#x27;存在时，执行下一条语句</span><br><span class="line">send &quot;hello_world&quot;# 向进程中输入数据。这里就是你的新密码了</span><br><span class="line">exit</span><br></pre></td></tr></table></figure>
+
+<h3 id="四-ps-process-status"><a href="#四-ps-process-status" class="headerlink" title="四. ps (process status)"></a>四. ps (process status)</h3><p>此ps非adobe 公司出品的ps，而是linux下查看进程相关状态的利器。同时，ps命令涉及了太多的参数，也为其使用带来了疑惑。在编写一些涉及处理程序的脚本时，ps几乎是必不可少的了。</p>
+<p>ps参数基本格式有三种：</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line">1：unix风格，参数前带一个&#x27;-&#x27;，i.e：ps -a</span><br><span class="line">2: BSD风格，参数不带&#x27;-&#x27;，i.e: ps a</span><br><span class="line">3: GNU长参数风格，参数带俩个&#x27;-&#x27;,i.e: ps --deselect</span><br></pre></td></tr></table></figure>
+<p>前两者风格的参数是可以无空格地混合在一块的，比如说常见的ps -aux ,是混合了两种风格的参数。混合参数之间默认是取与的关系</p>
+<p>介绍几个比较重要的参数</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line">-A unix风格，选择全部的进程</span><br><span class="line">-a 除去sid与pid相等的和与终端无关的全部进程</span><br><span class="line">-U 或者是 U 可以指定与该用户相关的进程</span><br><span class="line"> x 与终端有关的进程</span><br><span class="line">-o 指定输出格式</span><br></pre></td></tr></table></figure>
+
+<p>参数有很多，配合输出格式就会大有用途。</p>
+<p>输出格式有pid,state,tname,time,command等等，只需在-O 或者 o参数下指定就行了；</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">ps -aux o command,state,time   ## 可以输出启动命令，状态，时间片信息</span><br></pre></td></tr></table></figure>
+
+      
+    </div>
+    <footer class="article-footer">
+      <a data-url="https://muyizixiu.github.io/2015/12/15/LinuxCommand/" data-id="ckqhxvqfz0001phnc92ib0ezv" data-title="Linux niubility 命令集" class="article-share-link">Share</a>
+      
+      
+      
+    </footer>
+  </div>
+  
+</article>
+
+
+
+  
+    <article id="post-vim" class="h-entry article article-type-post" itemprop="blogPost" itemscope itemtype="https://schema.org/BlogPosting">
+  <div class="article-meta">
+    <a href="/2015/12/08/vim/" class="article-date">
+  <time class="dt-published" datetime="2015-12-08T00:00:00.000Z" itemprop="datePublished">2015-12-08</time>
+</a>
+    
+  <div class="article-category">
+    <a class="article-category-link" href="/categories/%E6%8A%80%E6%9C%AF/">技术</a>
+  </div>
+
+  </div>
+  <div class="article-inner">
+    
+    
+      <header class="article-header">
+        
+  
+    <h1 itemprop="name">
+      <a class="p-name article-title" href="/2015/12/08/vim/">vim党人</a>
+    </h1>
+  
+
+      </header>
+    
+    <div class="e-content article-entry" itemprop="articleBody">
+      
+        <p>vim是一个异常强大的编辑器，除了丰富的插件能满足你的需求之外，自身的快捷键真的体现了快捷二字。所谓诸般编码，唯快特牛。</p>
+<p>这里记录些vim从无到有的学习。</p>
+<h1 id="vim"><a href="#vim" class="headerlink" title="vim"></a>vim</h1><h3 id="一-初识风采"><a href="#一-初识风采" class="headerlink" title="一. 初识风采"></a>一. 初识风采</h3><ol>
+<li>插入（i）和退出到命令模式（ESC）//括号中均为所使用的键盘键。</li>
+<li>保存（:w）与退出(:q),两者经常合并起来使用(:wq),即保存后退出。</li>
+</ol>
+<p>以上俩技，可以在vim中写写东西了</p>
+<h2 id="二-小试牛刀"><a href="#二-小试牛刀" class="headerlink" title="二. 小试牛刀"></a>二. 小试牛刀</h2><ol>
+<li>在命令模式下移动上（k）下（j）左（h）右（l）//经常左手左上按一下（ESC），右手（hjkl）来控制移动，到了地方用（i）插入。</li>
+<li>命令模式下，另起一行输入，向上（O），向下（o）//此处是字母欧o的大小写。</li>
+</ol>
+<h2 id="三-执剑江湖"><a href="#三-执剑江湖" class="headerlink" title="三. 执剑江湖"></a>三. 执剑江湖</h2><ol>
+<li>命令模式下，删除（x）一个字。</li>
+<li>命令模式下，删除（dd）一行。</li>
+<li>命令模式下，黏贴（p）。</li>
+<li>命令模式下，复制（y）。</li>
+</ol>
+<p>掌握到这一步，多加使用，慢慢就适应vim了。但只是能像一般编辑器一样编写代码而已，要是对应的插件，如自动补充，没有配置是难以感受其便利的。</p>
+<h2 id="四-初练神功"><a href="#四-初练神功" class="headerlink" title="四. 初练神功"></a>四. 初练神功</h2><ol>
+<li>命令模式下，快速跳转到某行，按键（:n）跳转到第n行；//通过编译时的报错行，快速定位，真是一大利器。也经常用来跳到某行来编程（什么（/TДT)/ ？不知道行号，推荐 <strong>set num;</strong> 哦）</li>
+<li>跳转到行头（^）,直接按数字0也是可以的,行尾（$）；</li>
+<li>跳转到行头并且进行插入（I），跳转到行尾并插入（A）；//是另起一行的（o）和（O）一样的神技</li>
+</ol>
+
+      
+    </div>
+    <footer class="article-footer">
+      <a data-url="https://muyizixiu.github.io/2015/12/08/vim/" data-id="ckqhxvqgp0011phncfxr1fzlk" data-title="vim党人" class="article-share-link">Share</a>
+      
+      
+      
+    </footer>
+  </div>
+  
+</article>
+
+
+
+  
+    <article id="post-golang-inherit" class="h-entry article article-type-post" itemprop="blogPost" itemscope itemtype="https://schema.org/BlogPosting">
+  <div class="article-meta">
+    <a href="/2015/12/03/golang-inherit/" class="article-date">
+  <time class="dt-published" datetime="2015-12-03T00:00:00.000Z" itemprop="datePublished">2015-12-03</time>
+</a>
+    
+  <div class="article-category">
+    <a class="article-category-link" href="/categories/%E6%8A%80%E6%9C%AF/">技术</a>
+  </div>
+
+  </div>
+  <div class="article-inner">
+    
+    
+      <header class="article-header">
+        
+  
+    <h1 itemprop="name">
+      <a class="p-name article-title" href="/2015/12/03/golang-inherit/">golang的组合之道(1)</a>
+    </h1>
+  
+
+      </header>
+    
+    <div class="e-content article-entry" itemprop="articleBody">
+      
+        <p>作为程序员，是很喜欢有对象的。虽然编程思想一般是面向需求，但也要面向对象才行。golang是21世纪的编程语言，函数式编程的思想有，面向对象方式也有。golang可以简单地实现面向对象的几个特征：继承，封装，和接口抽象。</p>
+<h3 id="1-来自组合的继承"><a href="#1-来自组合的继承" class="headerlink" title="1.  来自组合的继承"></a>1.  来自组合的继承</h3><p>组合是可以实现继承的。</p>
+<h2 id="A"><a href="#A" class="headerlink" title="A"></a>A</h2><figure class="highlight golang"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">type</span> family <span class="keyword">struct</span>&#123;</span><br><span class="line">    FamilyName <span class="keyword">string</span></span><br><span class="line">&#125;</span><br><span class="line"><span class="keyword">type</span> member <span class="keyword">struct</span>&#123;</span><br><span class="line">    family</span><br><span class="line">    LastName <span class="keyword">string</span></span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>在这里，member结构体继承family的属性。有意思的是，golang中的继承只是一个语法糖，A的代码可以等效于：</p>
+<h2 id="B"><a href="#B" class="headerlink" title="B"></a>B</h2><pre><code>type family struct&#123;
+    FamilyName string
+&#125;
+type member struct&#123;
+    family family
+    LastName string
+&#125;
+</code></pre>
+<p>但两者并非一致，在A处访问FamilyName属性可以obj.family.FamilyName或者obj.FamilyName两种方式，然而B处的代码只能使用obj.family.FamilyName来访问属性。</p>
+<p>当使用obj.FamilyName来访问变量时，就像面向对象中的继承一样了。不过在golang中，这称之为组合。组合的使用更加的清晰，比起c++中复杂的继承，无疑golang是做到了异常的简洁。</p>
+<p>在应用组合的过程中也不要担心有什么副作用，如A和B的代码一样，他们在使用上虽有相似之处，但不会引起模棱两可的副作用的。如下所示：</p>
+<pre><code>package main
+
+import &quot;encoding/json&quot;
+
+type A struct &#123;
+    Name string
+&#125;
+
+type B struct &#123;
+    NickName string
+    A
+&#125;
+type C struct &#123;
+    NickName string
+    *A
+&#125;
+
+func main() &#123;
+    a := A&#123;&quot;Jacob&quot;&#125;
+    b := B&#123;&quot;lisa&quot;, A&#123;&quot;lisonana&quot;&#125;&#125;
+    b.A.Name = &quot;lisam&quot;//此处用(.A)访问，实际上直接访问也是可以的，即（b.Name=&quot;lisam&quot;）
+    aStr, _ := json.Marshal(a)
+    bStr, _ := json.Marshal(b)
+    println(&quot;a: &quot;, string(aStr))// a:  &#123;&quot;Name&quot;:&quot;Jacob&quot;&#125;
+    println(&quot;b: &quot;, string(bStr))// b:  &#123;&quot;NickName&quot;:&quot;lisa&quot;,&quot;Name&quot;:&quot;lisam&quot;&#125;
+    d := C&#123;&quot;lisa&quot;, &amp;A&#123;&quot;lisonana&quot;&#125;&#125;
+    d.A.Name = &quot;lisam&quot;
+    //d.A = &amp;A&#123;&quot;lisam&quot;&#125;
+    dStr, _ := json.Marshal(b)
+    println(&quot;d: &quot;, string(dStr))// d:  &#123;&quot;NickName&quot;:&quot;lisa&quot;,&quot;Name&quot;:&quot;lisam&quot;&#125;
+&#125;
+</code></pre>
+<p>注意到三处的打印的结果。</p>
+<pre><code>package main
+
+import &quot;encoding/json&quot;
+
+type A struct &#123;
+    Name string
+&#125;
+
+type B struct &#123;
+    NickName string
+    A A
+&#125;
+type C struct &#123;
+    NickName string
+    A *A 
+&#125;
+
+func main() &#123;
+    a := A&#123;&quot;Jacob&quot;&#125;
+    b := B&#123;&quot;lisa&quot;, A&#123;&quot;lisonana&quot;&#125;&#125;
+    b.A.Name = &quot;lisam&quot;//此处不能用(.A)访问，即（b.Name=&quot;lisam&quot;）是错误的
+    aStr, _ := json.Marshal(a)
+    bStr, _ := json.Marshal(b)
+    println(&quot;a: &quot;, string(aStr))//a:  &#123;&quot;Name&quot;:&quot;Jacob&quot;&#125;
+    println(&quot;b: &quot;, string(bStr))// b:  &#123;&quot;NickName&quot;:&quot;lisa&quot;,&quot;A&quot;:&#123;&quot;Name&quot;:&quot;lisam&quot;&#125;&#125;
+    d := C&#123;&quot;lisa&quot;, &amp;A&#123;&quot;lisonana&quot;&#125;&#125;
+    d.A.Name = &quot;lisam&quot;
+    //d.A = &amp;A&#123;&quot;lisam&quot;&#125;
+    dStr, _ := json.Marshal(b)
+    println(&quot;d: &quot;, string(dStr))// d:  &#123;&quot;NickName&quot;:&quot;lisa&quot;,&quot;A&quot;:&#123;&quot;Name&quot;:&quot;lisam&quot;&#125;&#125;
+&#125;
+</code></pre>
+<p>完全可以放心地把组合当成继承来使用。</p>
+
+      
+    </div>
+    <footer class="article-footer">
+      <a data-url="https://muyizixiu.github.io/2015/12/03/golang-inherit/" data-id="ckqhxvqg80008phnc3jj0fgp4" data-title="golang的组合之道(1)" class="article-share-link">Share</a>
+      
+      
+      
+    </footer>
+  </div>
+  
+</article>
+
+
+
+  
+    <article id="post-golang-slice" class="h-entry article article-type-post" itemprop="blogPost" itemscope itemtype="https://schema.org/BlogPosting">
+  <div class="article-meta">
+    <a href="/2015/10/29/golang-slice/" class="article-date">
+  <time class="dt-published" datetime="2015-10-29T00:00:00.000Z" itemprop="datePublished">2015-10-29</time>
+</a>
+    
+  <div class="article-category">
+    <a class="article-category-link" href="/categories/%E6%8A%80%E6%9C%AF/">技术</a>
+  </div>
+
+  </div>
+  <div class="article-inner">
+    
+    
+      <header class="article-header">
+        
+  
+    <h1 itemprop="name">
+      <a class="p-name article-title" href="/2015/10/29/golang-slice/">golang将slice转array</a>
+    </h1>
+  
+
+      </header>
+    
+    <div class="e-content article-entry" itemprop="articleBody">
+      
+        <p>最近写代码，遇到个问题，怎么将一个slice转化为数组。</p>
+<p>golang中将数组切片就变成了slice：</p>
+<pre><code>slice=array[m:n]
+</code></pre>
+<p>但是slice转换成array就是麻烦事了。数组初始化之后下标是可以直接访问的。</p>
+<pre><code>package main
+import()
+func main()&#123;
+    var a [4]int
+    a[3]=1
+&#125;
+</code></pre>
+<p>这样提供了一个可以遍历的方式去用slice给数组赋值。</p>
+<pre><code>for i:=0;i&lt;4;i++&#123;
+    a[i]=slice[m+i]
+&#125;
+</code></pre>
+<p>三行，多了个变量i，如果向array转slice一样，一行就行，多好。<br>一行：</p>
+<pre><code>copy(a[:],slice[m:m+4])
+</code></pre>
+<p>这就是答案。有点诡异是吧，其实跟这个函数无关，真正有用的是a后面的[:]。其实这里只是用到了slice是指向array的指针这个特点。将a生成一个切片，然后引用赋值。这样相当于给array赋值了。这就是如何给用slice给array赋值的故事。</p>
+
+      
+    </div>
+    <footer class="article-footer">
+      <a data-url="https://muyizixiu.github.io/2015/10/29/golang-slice/" data-id="ckqhxvqge000gphncgyul2ar8" data-title="golang将slice转array" class="article-share-link">Share</a>
+      
+      
+      
+    </footer>
+  </div>
+  
+</article>
+
+
+
+  
+    <article id="post-c-language" class="h-entry article article-type-post" itemprop="blogPost" itemscope itemtype="https://schema.org/BlogPosting">
+  <div class="article-meta">
+    <a href="/2015/10/28/c-language/" class="article-date">
+  <time class="dt-published" datetime="2015-10-28T00:00:00.000Z" itemprop="datePublished">2015-10-28</time>
+</a>
+    
+  <div class="article-category">
+    <a class="article-category-link" href="/categories/%E6%8A%80%E6%9C%AF/">技术</a>
+  </div>
+
+  </div>
+  <div class="article-inner">
+    
+    
+      <header class="article-header">
+        
+  
+    <h1 itemprop="name">
+      <a class="p-name article-title" href="/2015/10/28/c-language/">c语言学习速记</a>
+    </h1>
+  
+
+      </header>
+    
+    <div class="e-content article-entry" itemprop="articleBody">
+      
+        <p>以前闹着玩似地学习过c语言，现在出于工作安排，要应用c，做些应用层协议的实现，重新捡起c来，发现以前学的真真是用来输出下hello  world 而已。前事不忘后事之师也，就写一篇速记，来记录下c语言学到的重要节点。</p>
+<p>当然撸一把代码</p>
+<pre><code>#include &lt;stdio.h&gt;
+#define HELLO_WORLD &quot;hello world&quot;
+int main(void)&#123;               //是的，我是花括号不换行党
+    printf(HELLO_WORLD);
+    return 1;
+&#125;
+</code></pre>
+<p>其实这代码没什么意义，致敬一下而已，下面是正文╮(╯▽╰)╭。</p>
+<h3 id="c语言速记"><a href="#c语言速记" class="headerlink" title="c语言速记"></a>c语言速记</h3><ul>
+<li>c运算符</li>
+</ul>
+<ol>
+<li><p>++a和a++，这玩意儿以前学的时候很苦恼人，其实，不用太过在意，这就是一个子表达式，相当于（++a)和(a++),不同点在于前者先做自加运算，后者先赋值给外部，然后再做自加运算。至于像这种++a + ++a这种看编译器心情的东西，绝对不要管，在c语言中的一个表达式中有很多子表达式时，不推荐多个位置出现同一变量。因为c语言中子表达式的执行顺序是看编译器心情的，其副作用不能确定。</p>
+</li>
+<li><p>表达式的副作用，c的编译器实现有很多，彼此不一定做了相同的实现，所以没有被明确写入c99，c89规范的东西也有很多，表达式有时候就会很奇怪。</p>
+<pre><code>    #include &lt;stdio.h&gt;
+    #define false 0
+    int main(void)&#123;
+         int a;
+         a=1;
+         if (false &amp;&amp; ++a &gt;0)&#123;
+               print(&quot;a equals to %d&quot;,a);//a equqls to 1
+         &#125;
+    return 1;
+    &#125;
+</code></pre>
+<p>这里表达式++a没有进行运算。</p>
+<pre><code>    #include &lt;stdio.h&gt;
+    #define true
+    int main(void)&#123;
+         int a;
+         a=1;
+         if (true &amp;&amp; ++a &gt;0)&#123;
+              print(&quot;a equals to %d&quot;,a);//a equqls to 2
+         &#125;
+    return 1;
+    &#125;
+</code></pre>
+<p>   这里表达式++a运算了，这种子表达式的执行与运算符有关（这里是&amp;&amp;），&amp;&amp;运算符在左表达式为false的情形下，不执行右表达式，这种细节其实很累人的，有些还跟相关的编译器实现有关，推荐更加直接明了的写法。</p>
+</li>
+</ol>
+
+      
+    </div>
+    <footer class="article-footer">
+      <a data-url="https://muyizixiu.github.io/2015/10/28/c-language/" data-id="ckqhxvqg20003phncesfeesfz" data-title="c语言学习速记" class="article-share-link">Share</a>
+      
+      
+      
+    </footer>
+  </div>
+  
+</article>
+
+
+
+  
+    <article id="post-golang-json" class="h-entry article article-type-post" itemprop="blogPost" itemscope itemtype="https://schema.org/BlogPosting">
+  <div class="article-meta">
+    <a href="/2015/10/16/golang-json/" class="article-date">
+  <time class="dt-published" datetime="2015-10-16T00:00:00.000Z" itemprop="datePublished">2015-10-16</time>
+</a>
+    
+  </div>
+  <div class="article-inner">
+    
+    
+      <header class="article-header">
+        
+  
+    <h1 itemprop="name">
+      <a class="p-name article-title" href="/2015/10/16/golang-json/">golang json的大小写技巧</a>
+    </h1>
+  
+
+      </header>
+    
+    <div class="e-content article-entry" itemprop="articleBody">
+      
+        <p>golang中json格式有大小写要求，json中小写键名会无法导出，结构体小写也无法导出json对应键名。<br>就像这样（撸代码）：</p>
+<pre><code>   package main
+    import(
+            &quot;fmt&quot;
+           &quot;encoding/json&quot;
+    )
+    type js struct&#123;
+            name string
+    &#125;
+    func main()&#123;
+            j_:=js&#123;name:&quot;li&quot;&#125;
+            k,_:=json.Marshal(j_)//已经把j转化为json流了
+            fmt.Println(k)//nil
+    &#125;
+</code></pre>
+<p>看似造成了僵硬的json数据处理，以及和外部格式不一致！<br>   当然golang有考虑到这一点!</p>
+<p>在结构体字段后加标签可以处理大小写问题：</p>
+<pre><code>    package main
+    import(
+            &quot;fmt&quot;
+           &quot;encoding/json&quot;
+    )
+    type js struct&#123;
+            Name string    `json:&quot;name&quot;`
+    &#125;
+    func main()&#123;
+            j_:=js&#123;name:&quot;li&quot;&#125;
+            k,_:=json.Marshal(j_)//已经把j转化为json流了
+            fmt.Println(k)//[123 34 110 97 109 101 34 58 34 108 105 34 125]
+    &#125;
+</code></pre>
+<p>反之，json流转化为结构体也不用担心大小写了。具体原理应该是golang通过反射拿到了tag然后转换，作为一种golang自身设计与json标准的一种衔接吧。但这里依旧还是要有对应的键名作为tag。其实，golang还提供另一种更加宽泛的转换，那就是map了，结构体的json转换处理可以有更好的安全应用，使代码更加严谨，map的json转换则十分宽松，对于不明确的json解析就很方便了。</p>
+
+      
+    </div>
+    <footer class="article-footer">
+      <a data-url="https://muyizixiu.github.io/2015/10/16/golang-json/" data-id="ckqhxvqga000bphnc4zbgcktn" data-title="golang json的大小写技巧" class="article-share-link">Share</a>
+      
+      
+      
+    </footer>
+  </div>
+  
+</article>
+
+
+
+  
+    <article id="post-goroutine" class="h-entry article article-type-post" itemprop="blogPost" itemscope itemtype="https://schema.org/BlogPosting">
+  <div class="article-meta">
+    <a href="/2015/10/10/goroutine/" class="article-date">
+  <time class="dt-published" datetime="2015-10-10T00:00:00.000Z" itemprop="datePublished">2015-10-10</time>
+</a>
+    
+  <div class="article-category">
+    <a class="article-category-link" href="/categories/%E6%8A%80%E6%9C%AF/">技术</a>
+  </div>
+
+  </div>
+  <div class="article-inner">
+    
+    
+      <header class="article-header">
+        
+  
+    <h1 itemprop="name">
+      <a class="p-name article-title" href="/2015/10/10/goroutine/">golang routine调度中的核心设置</a>
+    </h1>
+  
+
+      </header>
+    
+    <div class="e-content article-entry" itemprop="articleBody">
+      
+        <p>观察一下在golang中多个goroutine是怎么调度的，上代码：</p>
+<pre><code>package main
+import(
+    &quot;fmt&quot;
+)
+func main()&#123;
+ go func()&#123;//goroutine 持续打印1
+            i:=1
+            fmt.Println(i)
+        &#125;()
+        for&#123;//main 程持续打印0
+        i:=0
+        fmt.Println(i)
+    &#125;
+
+&#125;
+</code></pre>
+<p>实际上在打印一段1之后会一直打印0，也就是没有切回main之外的goroutine。和平时理解的多线程似乎是不一样的，似乎跟一个普通函数的区别就是没等结束就跳出运行。来一段另外的代码：</p>
+<pre><code>package main
+import(
+     &quot;fmt&quot;
+     &quot;time&quot;
+)
+func main()&#123;
+go func()&#123;//goroutine 持续打印1
+        i:=1
+        fmt.Println(i)
+    &#125;()
+    for&#123;//main 程持续打印0
+              time.Sleep(time.Second*1)//每次阻塞一秒再打印
+        i:=0
+        fmt.Println(i)
+    &#125;
+
+&#125;
+</code></pre>
+<p>这里代码唯一不同的就是在for循环中增加了休眠，这里就可以发现别的goroutine在执行了。很奇怪是不是？又有点像多线程了。</p>
+<p>然而在实际工作中main程序会一直执行，要不特意进行阻塞（推荐个小技巧，select{}就能进行永久的休眠）。碰到这种问题其实只是一行简单的小代码就可以解决的，这时候就要祭出golang的runtime了。</p>
+<pre><code>package main
+import(
+    &quot;fmt&quot;
+    &quot;runtime&quot;
+)
+func main()&#123;
+    runtime.GOMAXPROCS(2)//运行机器是双核
+    go func()&#123;//goroutine 持续打印1
+        i:=1
+        fmt.Println(i)
+    &#125;()
+    for&#123;//main 程持续打印0
+        i:=0
+        fmt.Println(i)
+    &#125;
+
+&#125;
+</code></pre>
+<p>这段代码取消了原有的主程休眠，增加了运行时的cpu数量，这里的运行结果就可以看到预计的各个goroutine不停切换的效果了。是不是跟理想的多线程一样的呢！这个有待进一步探讨！</p>
+<p>上结论：<code>在golang1.4及一下，默认单核上运行多个goroutine时，main主程是要长时间占据cpu时间片的，其余goroutine在首次执行之后只有等待main主动让出cpu才能执行，main程序如果不让出cpu的话，程序是无法切回别的goroutine。</code></p>
+
+      
+    </div>
+    <footer class="article-footer">
+      <a data-url="https://muyizixiu.github.io/2015/10/10/goroutine/" data-id="ckqhxvqgf000iphncgpz073wn" data-title="golang routine调度中的核心设置" class="article-share-link">Share</a>
+      
+      
+      
+    </footer>
+  </div>
+  
+</article>
+
+
+
+  
+
+
+  <nav id="page-nav">
+    
+    <a class="extend prev" rel="prev" href="/page/13/">&laquo; Prev</a><a class="page-number" href="/">1</a><span class="space">&hellip;</span><a class="page-number" href="/page/12/">12</a><a class="page-number" href="/page/13/">13</a><span class="page-number current">14</span>
+  </nav>
+
+</section>
+        
+          <aside id="sidebar">
+  
+    
+  <div class="widget-wrap">
+    <h3 class="widget-title">Categories</h3>
+    <div class="widget">
+      <ul class="category-list"><li class="category-list-item"><a class="category-list-link" href="/categories/%E6%8A%80%E6%9C%AF/">技术</a><ul class="category-list-child"><li class="category-list-item"><a class="category-list-link" href="/categories/%E6%8A%80%E6%9C%AF/mysql/">mysql</a></li><li class="category-list-item"><a class="category-list-link" href="/categories/%E6%8A%80%E6%9C%AF/php/">php</a></li></ul></li></ul>
+    </div>
+  </div>
+
+
+  
+    
+
+  
+    
+  
+    
+  <div class="widget-wrap">
+    <h3 class="widget-title">Archives</h3>
+    <div class="widget">
+      <ul class="archive-list"><li class="archive-list-item"><a class="archive-list-link" href="/archives/2021/06/">June 2021</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2018/02/">February 2018</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2018/01/">January 2018</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2017/03/">March 2017</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2017/02/">February 2017</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2016/10/">October 2016</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2016/08/">August 2016</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2016/06/">June 2016</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2016/04/">April 2016</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2016/01/">January 2016</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2015/12/">December 2015</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2015/10/">October 2015</a></li></ul>
+    </div>
+  </div>
+
+
+  
+    
+  <div class="widget-wrap">
+    <h3 class="widget-title">Recent Posts</h3>
+    <div class="widget">
+      <ul>
+        
+          <li>
+            <a href="/2021/06/29/panya/start_c_1/">(no title)</a>
+          </li>
+        
+          <li>
+            <a href="/2021/06/29/panya/start_g_0/">(no title)</a>
+          </li>
+        
+          <li>
+            <a href="/2021/06/29/panya/%E4%BA%A7%E5%93%81%E4%B8%8E%E6%9C%8D%E5%8A%A1/">(no title)</a>
+          </li>
+        
+          <li>
+            <a href="/2021/06/29/panya/%E5%80%8B%E4%BA%BA%E4%B8%AD%E5%BF%83/">(no title)</a>
+          </li>
+        
+          <li>
+            <a href="/2021/06/29/panya/%E5%84%AA%E6%83%A0%E6%B4%BB%E5%8B%95/">(no title)</a>
+          </li>
+        
+      </ul>
+    </div>
+  </div>
+
+  
+</aside>
+        
+      </div>
+      <footer id="footer">
+  
+  <div class="outer">
+    <div id="footer-info" class="inner">
+      
+      &copy; 2021 John Doe<br>
+      Powered by <a href="https://hexo.io/" target="_blank">Hexo</a>
+    </div>
+  </div>
+</footer>
+
+    </div>
+    <nav id="mobile-nav">
+  
+    <a href="/" class="mobile-nav-link">Home</a>
+  
+    <a href="/archives" class="mobile-nav-link">Archives</a>
+  
+</nav>
+    
+
+
+<script src="/js/jquery-3.4.1.min.js"></script>
+
+
+
+  
+<script src="/fancybox/jquery.fancybox.min.js"></script>
+
+
+
+
+<script src="/js/script.js"></script>
+
+
+
+
+
+  </div>
+</body>
+</html>

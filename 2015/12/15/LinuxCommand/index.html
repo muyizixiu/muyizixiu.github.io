@@ -1,0 +1,284 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  
+  
+  <title>Linux niubility 命令集 | Hexo</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+  <meta name="description" content="对于绝大多数应用程序，系统调用（syscall）是被封装隐藏好了的，但大多数函数操作都有涉及的。文件读写，io操作，网络请求等等属于操作系统调度的操作都跟操作系统密切相关，所以对于程序（尤其是一定规模的程序），其性能，状态的分析，不仅仅是从代码层面上进行分析，也要注重在操作系统层面上进行分析。linux系统提供的很多命令，在这一方面，是极其厉害的。 一. lsof （list open files">
+<meta property="og:type" content="article">
+<meta property="og:title" content="Linux niubility 命令集">
+<meta property="og:url" content="https://muyizixiu.github.io/2015/12/15/LinuxCommand/index.html">
+<meta property="og:site_name" content="Hexo">
+<meta property="og:description" content="对于绝大多数应用程序，系统调用（syscall）是被封装隐藏好了的，但大多数函数操作都有涉及的。文件读写，io操作，网络请求等等属于操作系统调度的操作都跟操作系统密切相关，所以对于程序（尤其是一定规模的程序），其性能，状态的分析，不仅仅是从代码层面上进行分析，也要注重在操作系统层面上进行分析。linux系统提供的很多命令，在这一方面，是极其厉害的。 一. lsof （list open files">
+<meta property="og:locale" content="en_US">
+<meta property="article:published_time" content="2015-12-15T00:00:00.000Z">
+<meta property="article:modified_time" content="2021-06-29T11:00:50.934Z">
+<meta property="article:author" content="John Doe">
+<meta name="twitter:card" content="summary">
+  
+    <link rel="alternate" href="/atom.xml" title="Hexo" type="application/atom+xml">
+  
+  
+    <link rel="shortcut icon" href="/favicon.png">
+  
+  
+    
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/typeface-source-code-pro@0.0.71/index.min.css">
+
+  
+  
+<link rel="stylesheet" href="/css/style.css">
+
+  
+    
+<link rel="stylesheet" href="/fancybox/jquery.fancybox.min.css">
+
+  
+<meta name="generator" content="Hexo 5.4.0"></head>
+
+<body>
+  <div id="container">
+    <div id="wrap">
+      <header id="header">
+  <div id="banner"></div>
+  <div id="header-outer" class="outer">
+    <div id="header-title" class="inner">
+      <h1 id="logo-wrap">
+        <a href="/" id="logo">Hexo</a>
+      </h1>
+      
+    </div>
+    <div id="header-inner" class="inner">
+      <nav id="main-nav">
+        <a id="main-nav-toggle" class="nav-icon"></a>
+        
+          <a class="main-nav-link" href="/">Home</a>
+        
+          <a class="main-nav-link" href="/archives">Archives</a>
+        
+      </nav>
+      <nav id="sub-nav">
+        
+          <a id="nav-rss-link" class="nav-icon" href="/atom.xml" title="RSS Feed"></a>
+        
+        <a id="nav-search-btn" class="nav-icon" title="Search"></a>
+      </nav>
+      <div id="search-form-wrap">
+        <form action="//google.com/search" method="get" accept-charset="UTF-8" class="search-form"><input type="search" name="q" class="search-form-input" placeholder="Search"><button type="submit" class="search-form-submit">&#xF002;</button><input type="hidden" name="sitesearch" value="https://muyizixiu.github.io"></form>
+      </div>
+    </div>
+  </div>
+</header>
+
+      <div class="outer">
+        <section id="main"><article id="post-LinuxCommand" class="h-entry article article-type-post" itemprop="blogPost" itemscope itemtype="https://schema.org/BlogPosting">
+  <div class="article-meta">
+    <a href="/2015/12/15/LinuxCommand/" class="article-date">
+  <time class="dt-published" datetime="2015-12-15T00:00:00.000Z" itemprop="datePublished">2015-12-15</time>
+</a>
+    
+  <div class="article-category">
+    <a class="article-category-link" href="/categories/%E6%8A%80%E6%9C%AF/">技术</a>
+  </div>
+
+  </div>
+  <div class="article-inner">
+    
+    
+      <header class="article-header">
+        
+  
+    <h1 class="p-name article-title" itemprop="headline name">
+      Linux niubility 命令集
+    </h1>
+  
+
+      </header>
+    
+    <div class="e-content article-entry" itemprop="articleBody">
+      
+        <p>对于绝大多数应用程序，系统调用（syscall）是被封装隐藏好了的，但大多数函数操作都有涉及的。文件读写，io操作，网络请求等等属于操作系统调度的操作都跟操作系统密切相关，所以对于程序（尤其是一定规模的程序），其性能，状态的分析，不仅仅是从代码层面上进行分析，也要注重在操作系统层面上进行分析。linux系统提供的很多命令，在这一方面，是极其厉害的。</p>
+<h3 id="一-lsof-（list-open-files）"><a href="#一-lsof-（list-open-files）" class="headerlink" title="一. lsof （list open files）"></a>一. lsof （list open files）</h3><figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br></pre></td><td class="code"><pre><span class="line">Useage：</span><br><span class="line"></span><br><span class="line">    无选项时，lsof列出所有打开文件</span><br><span class="line">    -a : 与逻辑</span><br><span class="line">    -c : 指定进程</span><br><span class="line">    -l : 显示用户ID</span><br><span class="line">    -h : 帮助</span><br><span class="line">    -t : 仅获取进程ID</span><br><span class="line">    -U : UNIX套接口地址</span><br><span class="line">    -i : 进行正则匹配</span><br></pre></td></tr></table></figure>
+<p> 其余的简单就可以探索明白，其中a和i参数解释一下</p>
+<ol>
+<li><strong>-a</strong> : 进行与逻辑操作，lsof命令可以有多个参数，在多个参数指定的条件下，默认所有条件是或逻辑操作的，在参数-a存在的情形下就变成了与逻辑</li>
+<li><strong>-i</strong> : niubility就在这里出现了。lsof -i[46] [protocol][@hostname|hostaddr][:service|port]使用格式虽然有点长，对于网络连接的把控也体现出来了。比如说：</li>
+</ol>
+<ul>
+<li>查看某一端口：lsof -i :22</li>
+<li>查看某一ip建立的连接：lsof -i @localhost</li>
+</ul>
+<p>-i参数指定正则匹配，比起用管道|加grep匹配，这一参数还有更加明确的匹配格式，冒号加端口（:port），或者@符号加网络地址,都能进行更加明确的匹配。</p>
+<p>linux中一切皆文件（宛如js中一切皆对象），lsof 命令在linux中就不仅仅局限于文件了，可以用于分析网络端口（忘掉netstat命令吧），ip连接，文件读写等操作</p>
+<h3 id="二-tcpdump"><a href="#二-tcpdump" class="headerlink" title="二. tcpdump"></a>二. tcpdump</h3><p>抓包素来很酷，极具Geek范，在linux命令行下也有niubility的抓包命令：tcpdump</p>
+<p>tcpdump在网络上抓取数据，数据量大也可以保存下来，通过分析工具，例如wireshark，来分析数据。</p>
+<p>tcpdump的命令本身其实很简单，网路上有很多资料，这篇<a target="_blank" rel="noopener" href="http://bbs.chinaunix.net/thread-2222434-1-1.html">博客</a>内容较为齐全。</p>
+<p>tcpdump 重要的几个关键字和参数：</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line"></span><br><span class="line">指定网络参数：net（网络域），port（指定端口），host（指定主机，可以是主机名，也可以是ip地址）</span><br><span class="line"></span><br><span class="line">指定网络流方向:dst(去向),src（来源）</span><br><span class="line"></span><br><span class="line">指定网卡：-i</span><br></pre></td></tr></table></figure>
+
+<p>具体用法如下：</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><span class="line"></span><br><span class="line">\# tcpdump host localhost  </span><br><span class="line">这是指定为本机回环地址的情形，在没有指定网卡（无参数-i）的情形下，自动指定为第一块网卡，在这里，如果回环地址不是第一块网卡，是不会有数据的。</span><br><span class="line">\# tcpdump dst localhost -i lo</span><br><span class="line">抓取所有流向本机回环地址的数据，且指定网卡为回环地址的网卡，（lo是网卡名称，可用ifconfig命令查看）</span><br><span class="line">\# tcpdump host localhost or dst 192.168.1.1</span><br><span class="line">and 和or 的与或逻辑是支持的</span><br></pre></td></tr></table></figure>
+
+<h3 id="三-expect"><a href="#三-expect" class="headerlink" title="三. expect"></a>三. expect</h3><p>还在为命令行交互而烦恼吗，还在讨厌密码太长不想输入吗？</p>
+<p>expect是可以处理命令行交互的命令，命令行下的一些输入，比如输入密码，是需要交互的输入，无法直接通过输入输出重定向来实现，这个时候使用expect命令就是切合了。</p>
+<p>expect本身就像一个伪shell一样，所以能够提供交互功能。</p>
+<p>简单的脚本示范</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line"># !/usr/bin/expect</span><br><span class="line">spawn echo &quot;hello world&quot;</span><br><span class="line">interact</span><br></pre></td></tr></table></figure>
+<p>输出为：</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">spawn echo &quot;hello world&quot;</span><br><span class="line">hello world</span><br></pre></td></tr></table></figure>
+<p>spawn 一般是启动命令，后面跟着要执行的命令，spawn会启动这个命令进程，然后与其交互。第一行的显示表示启动的命令，是对应的脚本行的原样显示。</p>
+<p>interact关键字是指：将交互还给shell。<br>还有另外一个关键字：exit，退出脚本执行。</p>
+<p>expect 重要的交互命令</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line"># !/usr/bin/expect</span><br><span class="line">spawn passwd root # 执行更改密码的命令</span><br><span class="line">expect &quot;password&quot; # expect 接收进程中的输出，匹配到&#x27;password&#x27;存在时，执行下一条语句</span><br><span class="line">send &quot;hello_world&quot;# 向进程中输入数据。这里就是你的新密码了</span><br><span class="line">exit</span><br></pre></td></tr></table></figure>
+
+<h3 id="四-ps-process-status"><a href="#四-ps-process-status" class="headerlink" title="四. ps (process status)"></a>四. ps (process status)</h3><p>此ps非adobe 公司出品的ps，而是linux下查看进程相关状态的利器。同时，ps命令涉及了太多的参数，也为其使用带来了疑惑。在编写一些涉及处理程序的脚本时，ps几乎是必不可少的了。</p>
+<p>ps参数基本格式有三种：</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line">1：unix风格，参数前带一个&#x27;-&#x27;，i.e：ps -a</span><br><span class="line">2: BSD风格，参数不带&#x27;-&#x27;，i.e: ps a</span><br><span class="line">3: GNU长参数风格，参数带俩个&#x27;-&#x27;,i.e: ps --deselect</span><br></pre></td></tr></table></figure>
+<p>前两者风格的参数是可以无空格地混合在一块的，比如说常见的ps -aux ,是混合了两种风格的参数。混合参数之间默认是取与的关系</p>
+<p>介绍几个比较重要的参数</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line">-A unix风格，选择全部的进程</span><br><span class="line">-a 除去sid与pid相等的和与终端无关的全部进程</span><br><span class="line">-U 或者是 U 可以指定与该用户相关的进程</span><br><span class="line"> x 与终端有关的进程</span><br><span class="line">-o 指定输出格式</span><br></pre></td></tr></table></figure>
+
+<p>参数有很多，配合输出格式就会大有用途。</p>
+<p>输出格式有pid,state,tname,time,command等等，只需在-O 或者 o参数下指定就行了；</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">ps -aux o command,state,time   ## 可以输出启动命令，状态，时间片信息</span><br></pre></td></tr></table></figure>
+
+      
+    </div>
+    <footer class="article-footer">
+      <a data-url="https://muyizixiu.github.io/2015/12/15/LinuxCommand/" data-id="ckqhxvqfz0001phnc92ib0ezv" data-title="Linux niubility 命令集" class="article-share-link">Share</a>
+      
+      
+      
+    </footer>
+  </div>
+  
+    
+<nav id="article-nav">
+  
+    <a href="/2016/01/20/golang-share-lib/" id="article-nav-newer" class="article-nav-link-wrap">
+      <strong class="article-nav-caption">Newer</strong>
+      <div class="article-nav-title">
+        
+          golang共享库
+        
+      </div>
+    </a>
+  
+  
+    <a href="/2015/12/08/vim/" id="article-nav-older" class="article-nav-link-wrap">
+      <strong class="article-nav-caption">Older</strong>
+      <div class="article-nav-title">vim党人</div>
+    </a>
+  
+</nav>
+
+  
+</article>
+
+
+</section>
+        
+          <aside id="sidebar">
+  
+    
+  <div class="widget-wrap">
+    <h3 class="widget-title">Categories</h3>
+    <div class="widget">
+      <ul class="category-list"><li class="category-list-item"><a class="category-list-link" href="/categories/%E6%8A%80%E6%9C%AF/">技术</a><ul class="category-list-child"><li class="category-list-item"><a class="category-list-link" href="/categories/%E6%8A%80%E6%9C%AF/mysql/">mysql</a></li><li class="category-list-item"><a class="category-list-link" href="/categories/%E6%8A%80%E6%9C%AF/php/">php</a></li></ul></li></ul>
+    </div>
+  </div>
+
+
+  
+    
+
+  
+    
+  
+    
+  <div class="widget-wrap">
+    <h3 class="widget-title">Archives</h3>
+    <div class="widget">
+      <ul class="archive-list"><li class="archive-list-item"><a class="archive-list-link" href="/archives/2021/06/">June 2021</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2018/02/">February 2018</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2018/01/">January 2018</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2017/03/">March 2017</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2017/02/">February 2017</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2016/10/">October 2016</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2016/08/">August 2016</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2016/06/">June 2016</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2016/04/">April 2016</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2016/01/">January 2016</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2015/12/">December 2015</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2015/10/">October 2015</a></li></ul>
+    </div>
+  </div>
+
+
+  
+    
+  <div class="widget-wrap">
+    <h3 class="widget-title">Recent Posts</h3>
+    <div class="widget">
+      <ul>
+        
+          <li>
+            <a href="/2021/06/29/panya/start_c_1/">(no title)</a>
+          </li>
+        
+          <li>
+            <a href="/2021/06/29/panya/start_g_0/">(no title)</a>
+          </li>
+        
+          <li>
+            <a href="/2021/06/29/panya/%E4%BA%A7%E5%93%81%E4%B8%8E%E6%9C%8D%E5%8A%A1/">(no title)</a>
+          </li>
+        
+          <li>
+            <a href="/2021/06/29/panya/%E5%80%8B%E4%BA%BA%E4%B8%AD%E5%BF%83/">(no title)</a>
+          </li>
+        
+          <li>
+            <a href="/2021/06/29/panya/%E5%84%AA%E6%83%A0%E6%B4%BB%E5%8B%95/">(no title)</a>
+          </li>
+        
+      </ul>
+    </div>
+  </div>
+
+  
+</aside>
+        
+      </div>
+      <footer id="footer">
+  
+  <div class="outer">
+    <div id="footer-info" class="inner">
+      
+      &copy; 2021 John Doe<br>
+      Powered by <a href="https://hexo.io/" target="_blank">Hexo</a>
+    </div>
+  </div>
+</footer>
+
+    </div>
+    <nav id="mobile-nav">
+  
+    <a href="/" class="mobile-nav-link">Home</a>
+  
+    <a href="/archives" class="mobile-nav-link">Archives</a>
+  
+</nav>
+    
+
+
+<script src="/js/jquery-3.4.1.min.js"></script>
+
+
+
+  
+<script src="/fancybox/jquery.fancybox.min.js"></script>
+
+
+
+
+<script src="/js/script.js"></script>
+
+
+
+
+
+  </div>
+</body>
+</html>
